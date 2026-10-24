@@ -22,7 +22,7 @@
   "author": "Ben Weeks",
   "license": "MIT",
   "devDependencies": {
-    "electron": "44.4.1",
+    "electron": "44.9.1",
     "playwright": "^1.63.0",
     "puppeteer": "^25.11.0"
   },
