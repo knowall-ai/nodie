@@ -1,4 +1,4 @@
-const { app, BrowserWindow, globalShortcut, Tray, Menu, ipcMain, dialog, Notification, session, shell } = require('electron');
+const { app, BrowserWindow, globalShortcut, Tray, Menu, ipcMain, dialog, Notification, session, shell, powerSaveBlocker } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const { pathToFileURL } = require('node:url');
@@ -218,11 +218,15 @@ function start() {
         return monitor.apply(id);
     }, true);
     app.whenReady().then(() => {
+        if (process.argv.includes('--keep-awake')) {
+            const blocker = powerSaveBlocker.start('prevent-display-sleep');
+            app.once('will-quit', () => powerSaveBlocker.stop(blocker));
+        }
         session.defaultSession.setPermissionRequestHandler((contents, permission, callback, details) => {
             callback(contents === mainWindow?.webContents && contents.getURL() === pathToFileURL(path.join(__dirname, 'index.html')).href && permission === 'media');
         });
         session.defaultSession.setPermissionCheckHandler((contents, permission, _origin, details) => contents === mainWindow?.webContents && permission === 'media' && contents.getURL() === pathToFileURL(path.join(__dirname, 'index.html')).href);
-        mainWindow = secureWindow({ width: 300, height: 300, title: 'Nod.ie', frame: false, transparent: true, alwaysOnTop: true, resizable: false, skipTaskbar: true, ...(process.platform === 'linux' ? { type: 'dock' } : {}) }, 'index.html');
+        mainWindow = secureWindow({ width: 300, height: 300, title: 'Nod.ie', frame: false, transparent: true, alwaysOnTop: true, resizable: false, skipTaskbar: true, ...(process.platform === 'linux' && !process.argv.includes('--fullscreen') ? { type: 'dock' } : {}) }, 'index.html');
         // A Linux dock overlay avoids KWin's normal-window panel avoidance and resize drift.
         mainWindow.setAlwaysOnTop(true, 'screen-saver');
         const input = require('./lib/window-hit-test');
@@ -233,6 +237,7 @@ function start() {
         const area = screen.getPrimaryDisplay().workArea;
         if (position && Number.isFinite(position.x) && Number.isFinite(position.y) && screen.getAllDisplays().some(d => { const p = dragPosition({ x: 0, y: 0 }, { x: 0, y: 0 }, [position.x, position.y], [300, 300], d.bounds); return p[0] === position.x && p[1] === position.y; })) mainWindow.setPosition(position.x, position.y);
         else mainWindow.setPosition(area.x + area.width - 350, area.y + area.height - 350);
+        if (process.argv.includes('--fullscreen')) mainWindow.webContents.once('did-finish-load', () => windowMode.action('fullscreen'));
         mainWindow.on('moved', () => { if(windowMode.isFullscreen())return; const [x, y] = mainWindow.getPosition(); store.set('position', { x, y }); });
         mainWindow.on('close', event => { if (!app.isQuitting) { event.preventDefault(); mainWindow.hide(); } });
         const menu = Menu.buildFromTemplate([{ label: 'Show Nod.ie', click: () => mainWindow.show() }, { label: 'Settings and security updates', click: showSettings }, { label: 'Reload', click: () => mainWindow.reload() }, { label: 'Developer tools', click: () => mainWindow.webContents.openDevTools({ mode: 'detach' }) }, { type: 'separator' }, { label: 'Quit', click: () => app.quit() }]);
