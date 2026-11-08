@@ -27,6 +27,8 @@ function start() {
     const speakerRecognition = new (require('./lib/speaker-recognition').SpeakerRecognition)();
     const voice = new LocalVoice({ logger, historyStore, journal, speakerRecognition, avatarEnabled: () => config().AVATAR_ENABLED, diagnostics: () => diagnostics.status() });
     let windowMode;
+    const launchFlags = require('./lib/launch-flags');
+    const keepAwake = launchFlags.displayKeepAwake(powerSaveBlocker, app);
     let mainWindow, pointerTracker, settingsWindow, tray, monitor, dragTimer, dragDeadline, dragMoved = false, updateDrag;
     const stopDrag = () => { updateDrag?.(); clearInterval(dragTimer); clearTimeout(dragDeadline); dragTimer = null; updateDrag = null; return dragMoved; };
     const config = () => normalize({ ...env, ...Object.fromEntries(Object.entries(aliases).map(([key, alias]) => [key, store.get(alias) ?? env[key]])) });
@@ -218,10 +220,7 @@ function start() {
         return monitor.apply(id);
     }, true);
     app.whenReady().then(() => {
-        if (process.argv.includes('--keep-awake')) {
-            const blocker = powerSaveBlocker.start('prevent-display-sleep');
-            app.once('will-quit', () => powerSaveBlocker.stop(blocker));
-        }
+        if (process.argv.includes('--keep-awake')) keepAwake();
         session.defaultSession.setPermissionRequestHandler((contents, permission, callback, details) => {
             callback(contents === mainWindow?.webContents && contents.getURL() === pathToFileURL(path.join(__dirname, 'index.html')).href && permission === 'media');
         });
@@ -264,5 +263,5 @@ function start() {
         })().catch(() => {});
     });
     app.on('will-quit', () => globalShortcut.unregisterAll());
-    app.on('second-instance', () => { mainWindow?.show(); mainWindow?.focus(); });
+    app.on('second-instance', (_event, commandLine) => launchFlags.applySecondLaunch(commandLine, { window: mainWindow, windowMode, keepAwake }));
 }

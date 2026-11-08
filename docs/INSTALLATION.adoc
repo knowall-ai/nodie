@@ -65,6 +65,7 @@ For an always-on desktop display, launch `npm start -- --fullscreen --keep-awake
 Nod.ie starts in full screen and inhibits display sleep while its desktop process runs.
 Escape still restores the compact window. Add this command to desktop login autostart
 to restore the display after signing in; it does not enable automatic login.
+Nod.ie runs as a single instance. Launching it again while it runs shows and focuses the window and applies the new launch's flags: `--fullscreen` enters full screen, and `--keep-awake` starts the display-sleep blocker (at most one per process). Flags are never turned off by a later launch.
 
 The desktop has small Full screen / Restore and Minimize to system tray controls centred on the upper-right arc of the avatar boundary. The fullscreen camera preview remains clipped and positioned inside its own control. Full screen presents the enlarged avatar with a dark background and bottom controls; Escape restores the previous compact position and size. Hiding does not end the conversation. Tray click or the existing show shortcut reopens it.
 
