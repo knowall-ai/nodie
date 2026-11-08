@@ -1,7 +1,12 @@
 {
   "name": "nodie",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Nod.ie - AI voice assistant with Unmute integration",
+  "homepage": "https://github.com/knowall-ai/nodie",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/knowall-ai/nodie.git"
+  },
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -10,7 +15,9 @@
     "web": "node serve-web-with-env.js",
     "dev-web": "node serve-web-with-env.js",
     "docs": "bash docs/generate-docs.sh",
-    "security:scan": "node scripts/security-scan.js"
+    "security:scan": "node scripts/security-scan.js",
+    "dist": "umask 022 && rm -rf dist && chmod go-w assets/avatars/nodie-default.png && electron-builder --linux deb --publish never",
+    "dist:check": "node scripts/check-dist.js dist/*.deb"
   },
   "keywords": [
     "voice",
@@ -22,7 +29,8 @@
   "author": "Ben Weeks",
   "license": "MIT",
   "devDependencies": {
-    "electron": "44.4.1",
+    "electron": "44.9.1",
+    "electron-builder": "26.18.0",
     "playwright": "^1.63.0",
     "puppeteer": "^25.11.0"
   },
@@ -42,5 +50,93 @@
   },
   "overrides": {
     "sharp": "0.35.4"
-  }
+  },
+  "build": {
+    "appId": "ai.knowall.nodie",
+    "productName": "nodie",
+    "artifactName": "nodie_${version}_${arch}.${ext}",
+    "directories": {
+      "output": "dist"
+    },
+    "npmRebuild": false,
+    "files": [
+      "**/*",
+      "!.env",
+      "!**/.env",
+      "!**/.env.*",
+      "!**/*.pem",
+      "!**/*.key",
+      "!.github/**",
+      "!.claude/**",
+      "!dist/**",
+      "!docs/**",
+      "!tests/**",
+      "!test-results/**",
+      "!test-*.js",
+      "!musetalk-service/**",
+      "!voice/**",
+      "!recognition-models/**",
+      "!.venv*/**",
+      "!**/__pycache__/**",
+      "!unmute-service/**",
+      "unmute-service/linked-people.cjs",
+      "!{ARCHITECTURE,CLAUDE,CONTRIBUTE,CONTRIBUTING,PRD,README,SECURITY,TROUBLESHOOTING,UNMUTE-FORK-CHANGES,available-voices,musetalk-model-organization-issue}.md",
+      "!unmute-knowall-patch.patch",
+      "!generate-web-config.js",
+      "!serve-web*.js",
+      "!node_modules/onnxruntime-node/**",
+      "!node_modules/onnxruntime-web/**",
+      "!node_modules/onnxruntime-common/**",
+      "!node_modules/@huggingface/**",
+      "!node_modules/sharp/**",
+      "!node_modules/@img/**"
+    ],
+    "asarUnpack": [
+      "scripts/x11-input-region.py",
+      "recognition/**"
+    ],
+    "linux": {
+      "target": [
+        "deb"
+      ],
+      "executableName": "nodie",
+      "category": "Utility",
+      "icon": "assets/avatars/nodie-default.png",
+      "synopsis": "Local voice assistant",
+      "desktop": {
+        "entry": {
+          "Name": "Nod.ie",
+          "Comment": "Local voice assistant",
+          "StartupWMClass": "nodie"
+        }
+      },
+      "maintainer": "KnowAll AI",
+      "syncDesktopName": true
+    },
+    "asar": true,
+    "electronFuses": {
+      "runAsNode": false,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "enableEmbeddedAsarIntegrityValidation": true,
+      "onlyLoadAppFromAsar": true,
+      "enableCookieEncryption": true
+    },
+    "deb": {
+      "packageName": "nodie",
+      "depends": [
+        "libgtk-3-0",
+        "libnotify4",
+        "libnss3",
+        "libxss1",
+        "libxtst6",
+        "xdg-utils",
+        "libatspi2.0-0",
+        "libuuid1",
+        "libsecret-1-0",
+        "python3"
+      ]
+    }
+  },
+  "desktopName": "nodie.desktop"
 }

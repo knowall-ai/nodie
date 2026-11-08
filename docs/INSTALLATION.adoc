@@ -19,6 +19,18 @@ The browser defaults to `http://127.0.0.1:8095`. Keep its server running, or use
 
 On Ubuntu systems restricting unprivileged user namespaces, Electron may need an application-specific AppArmor profile. Review and run `bash scripts/setup-linux-sandbox.sh`; administrator authentication is required. The script permits user namespaces for this Electron executable only. It does not disable Chromium's sandbox or change the global kernel policy. Re-run after moving the checkout. The web interface is available without this change.
 
+=== Packaged Linux install (.deb)
+
+Each version tag (`v1.2.3`, matching `package.json`) runs `.github/workflows/release.yml` on Ubuntu 24.04. The workflow builds `nodie_<version>_amd64.deb` with `npm run dist` and checks it with `npm run dist:check`, then publishes it with `SHA256SUMS`. The check confirms the package name, the `/opt/nodie` payload and the AppArmor profile. It also refuses group- or world-writable entries, environment files, keys and likely credentials. To build locally, run `npm ci && npm run dist && npm run dist:check`.
+
+The package installs root-owned files to `/opt/nodie` and links `/usr/bin/nodie`. It also installs a desktop entry (`StartupWMClass=nodie`). Its post-install script installs `/etc/apparmor.d/nodie`, granting user namespaces only to `/opt/nodie/nodie`, so Chromium's sandbox works without `--no-sandbox`. Installing replaces an older `nodie` profile written by `scripts/setup-linux-sandbox.sh` for a checkout. Verify the SHA256 against the release's `SHA256SUMS` before installing with `apt-get install ./nodie_<version>_amd64.deb`.
+
+The packaged binary's Electron fuses disable `ELECTRON_RUN_AS_NODE`, `NODE_OPTIONS` and inspector arguments, because its AppArmor profile grants user namespaces. Reverie memory therefore runs in an Electron utility process instead of a re-executed Node runtime. Semantic embedding libraries are not packaged; the desktop always uses keyword recall (`REVERIE_EMBEDDINGS=none`).
+
+Launch with `nodie` (or `nodie --fullscreen --keep-awake` for an always-on display); the window class is `nodie`. A second launch shows and focuses the running window. Settings, history and logs stay in `~/.config/nodie`. A packaged build reads `~/.config/nodie/.env`; a checkout keeps reading its own `.env`. `NODIE_ENV_FILE` overrides both. Crash minidumps are written locally to `~/.config/nodie/Crashpad` and are never uploaded.
+
+`NODIE_EVENTS_DIR` moves the event journal and node status files that the backend's `compose.events.yml` reads. The default is `~/.config/nodie/events`. Set an absolute path, for example `/var/lib/nodie/events` on a host where the voice backend runs under another account. Face recognition in a packaged build needs `NODIE_FACE_PYTHON` to point at a separately prepared Python environment, because the package contains no virtual environment.
+
 === Configuration
 
 `VOICE_MODE=local` selects the lightweight path. Set `LOCAL_STT_URL`, `LOCAL_STT_MODEL`, `LOCAL_TTS_URL`, `OLLAMA_URL` and `LOCAL_LLM_MODEL`. The selected local model is `qwen3.5:9b` (download with `ollama pull qwen3.5:9b`); set `LOCAL_LLM_MODEL=qwen3.5:9b`. Its voice requests disable thinking. Camera input remains a separate, unimplemented capability. The speech service must implement `/api/tts` returning WAV; the transcription service must implement `/v1/audio/transcriptions`.
