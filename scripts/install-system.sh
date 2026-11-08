@@ -21,6 +21,8 @@ expected=${2,,}
 # Work on a root-owned copy so the file can't be swapped between check and install.
 tmp=$(mktemp -d /var/tmp/nodie-install.XXXXXX)
 trap 'rm -rf "$tmp"' EXIT
+# apt drops privileges to _apt to read local .debs; let it into the directory.
+chmod 755 "$tmp"
 cp -- "$deb" "$tmp/pkg.deb"
 chmod 644 "$tmp/pkg.deb"
 deb=$tmp/pkg.deb
@@ -36,11 +38,16 @@ grep -qx './opt/nodie/nodie' <<<"$contents" || die "package doesn't install to /
 grep -qx './opt/nodie/resources/apparmor-profile' <<<"$contents" || die "package has no AppArmor profile"
 
 echo "Installing $pkg $ver (SHA256 verified)…"
-apt-get install -y --no-install-recommends "$deb"
-
-if [[ ! -f /etc/apparmor.d/nodie ]] || ! grep -q '"/opt/nodie/nodie"' /etc/apparmor.d/nodie; then
+apt-get install -y --no-install-recommends "$deb" || {
   apt-get remove -y nodie || true
-  die "AppArmor profile for /opt/nodie/nodie missing after install; removed the package again"
+  die "apt-get install failed (for example the AppArmor post-install step); removed the package again"
+}
+
+# The profile must be on disk for /opt/nodie/nodie AND loaded in the kernel.
+if [[ ! -f /etc/apparmor.d/nodie ]] || ! grep -q '"/opt/nodie/nodie"' /etc/apparmor.d/nodie \
+   || ! grep -qx 'nodie (unconfined)' /sys/kernel/security/apparmor/profiles; then
+  apt-get remove -y nodie || true
+  die "AppArmor profile for /opt/nodie/nodie missing or not loaded after install; removed the package again"
 fi
 echo
 echo "Installed $pkg $ver to /opt/nodie (launch: nodie, window class: nodie)."

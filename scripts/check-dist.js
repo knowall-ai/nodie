@@ -9,8 +9,7 @@ const path = require('node:path');
 const asar = require('@electron/asar');
 
 let root = path.resolve(process.argv[2] || 'dist/linux-unpacked');
-const forbiddenName = /(^|\/)(\.env(\..+)?|mcp\.json|.*\.pem|.*\.key|id_(rsa|ed25519))$/i;
-const allowedName = /(^|\/)\.env\.example$/;
+const forbiddenName = /(^|\/)(\.env(\..+)?|\.npmrc|.*\.log|mcp\.json|.*\.pem|.*\.key|id_(rsa|ed25519))$/i;
 const secret = [
     /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
     /\b(?:NEO4J_PASSWORD|HF_TOKEN|HUGGING_FACE_HUB_TOKEN|OPENAI_API_KEY|ANTHROPIC_API_KEY)\s*=\s*['"]?[^\s'"$]{6,}/,
@@ -22,7 +21,7 @@ const textExt = /\.(js|cjs|mjs|json|md|txt|html|css|py|sh|yml|yaml|toml|cfg|ini)
 const problems = [];
 
 function check(name, read) {
-    if (forbiddenName.test(name) && !allowedName.test(name)) problems.push(`forbidden file: ${name}`);
+    if (forbiddenName.test(name)) problems.push(`forbidden file: ${name}`);
     // Third-party packages are scanned for files only; their docs contain example keys.
     if (!textExt.test(name) || name.includes('node_modules/')) return;
     const text = read();
