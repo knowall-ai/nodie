@@ -3,6 +3,18 @@
     const controls = () => [...document.querySelectorAll('#avatar-controls button')]
         .filter(button => !button.hidden && !button.disabled && button.getAttribute('aria-disabled') !== 'true' && button.getClientRects().length);
     document.addEventListener('keydown', event => {
+        // Sofa's app controls are local to this focused window, never global.
+        const action = event.ctrlKey && event.shiftKey && !event.altKey && !event.metaKey &&
+            ({ c: 'control-camera', m: 'control-mic', s: 'control-speaker' })[event.key.toLowerCase()];
+        if (action && !event.defaultPrevented && !event.target?.closest?.('input, textarea, select, [contenteditable="true"]')) {
+            const button = document.getElementById(action);
+            if (button && !button.hidden && !button.disabled && button.getClientRects().length) {
+                event.preventDefault();
+                button.focus();
+                if (!event.repeat) button.click();
+            }
+            return;
+        }
         if (event.ctrlKey || event.altKey || event.metaKey || event.defaultPrevented) return;
         if (event.target?.closest?.('input, textarea, select, [contenteditable="true"]')) return;
         const buttons = controls();
