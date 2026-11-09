@@ -13,7 +13,7 @@ class AvatarControls {
         }
         try { renderer.state.speakerMuted = localStorage.getItem(AvatarControls.speakerStorageKey) === 'true'; } catch { renderer.state.speakerMuted = false; }
         this.mic?.addEventListener('click', () => {
-            if (renderer.state.isLoading) return;
+            if (renderer.state.isLoading && !this.microphoneOn()) return;
             const voice = renderer.localVoice;
             if (voice) voice.toggleListening();
             else renderer.toggleMute();
@@ -90,9 +90,9 @@ class AvatarControls {
         this.updateCamera();
         const state = this.renderer.state;
         const local = this.renderer.localVoice;
-        const micOn = local ? Boolean(local.listeningEnabled) : Boolean(state.audioCapture && !state.isMuted);
+        const micOn = this.microphoneOn();
         if (this.mic) {
-            this.mic.disabled = state.isLoading;
+            this.mic.disabled = state.isLoading && !micOn;
             this.mic.setAttribute('aria-pressed', String(micOn));
             this.mic.dataset.on = String(micOn);
             this.mic.setAttribute('aria-busy', String(local?.state === 'starting'));
@@ -108,6 +108,10 @@ class AvatarControls {
             this.speaker.title = on ? 'Speaker on' : 'Speaker off';
             this.speaker.querySelector('img').src = this.icon(on ? 'volume-2' : 'volume-x');
         }
+    }
+    microphoneOn() {
+        const { localVoice, state } = this.renderer;
+        return localVoice ? Boolean(localVoice.listeningEnabled) : Boolean(state.audioCapture && !state.isMuted);
     }
     icon(name) { return `${window.location.pathname.includes('/tests/') ? '../' : './'}assets/icons/lucide/${name}.svg`; }
 }
