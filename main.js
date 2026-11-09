@@ -219,28 +219,49 @@ function start() {
         if (result.response !== 1 || !result.checkboxChecked) return { status: 'cancelled' };
         return monitor.apply(id);
     }, true);
+    function createMainWindow(fullscreen, bounds, visible = true) {
+        mainWindow = secureWindow({ width: 300, height: 300, title: 'Nod.ie', frame: false, transparent: true, alwaysOnTop: true, resizable: false, skipTaskbar: true, show: false, ...(process.platform === 'linux' && !fullscreen ? { type: 'dock' } : {}) }, 'index.html');
+        // A Linux dock overlay avoids KWin's normal-window panel avoidance and resize drift.
+        mainWindow.setAlwaysOnTop(true, 'screen-saver');
+        const input = require('./lib/window-hit-test');
+        pointerTracker = process.platform === 'linux' && process.env.DISPLAY ? input.nativeInputRegion(mainWindow, logger) : input.trackPointer(mainWindow, require('electron').screen, () => Boolean(dragTimer));
+        const win = mainWindow;
+        windowMode=require('./lib/window-controls').windowControls(win,pointerTracker,globalShortcut, (next, bounds) => {
+            if (process.platform !== 'linux' || next === fullscreen || app.isQuitting || win !== mainWindow) return;
+            const visible = win.isVisible();
+            stopDrag();
+            // Stop native input helpers before retiring their window. The process-level
+            // services, single-instance lock and sleep blocker survive the replacement.
+            void pointerTracker.stop();
+            settingsWindow?.setParentWindow(null);
+            createMainWindow(next, bounds, visible);
+            settingsWindow?.setParentWindow(mainWindow);
+            win.destroy(); // bypass close-to-tray; the replacement already exists
+            windowMode.syncEscape();
+            return { fullscreen: next };
+        });
+        const position = store.get('position');
+        const { screen } = require('electron');
+        const area = screen.getPrimaryDisplay().workArea;
+        if (position && Number.isFinite(position.x) && Number.isFinite(position.y) && screen.getAllDisplays().some(d => { const p = dragPosition({ x: 0, y: 0 }, { x: 0, y: 0 }, [position.x, position.y], [300, 300], d.bounds); return p[0] === position.x && p[1] === position.y; })) mainWindow.setPosition(position.x, position.y);
+        else mainWindow.setPosition(area.x + area.width - 350, area.y + area.height - 350);
+        if (bounds) win.setBounds(bounds);
+        // Enter immediately so forwarded launches and moved events see the right mode.
+        if (fullscreen) windowMode.action('fullscreen');
+        if (visible) win.show();
+        win.on('moved', () => { if(win !== mainWindow || windowMode.isFullscreen())return; const [x, y] = win.getPosition(); store.set('position', { x, y }); });
+        win.on('close', event => { if (!app.isQuitting) { event.preventDefault(); win.hide(); } });
+        const menu = Menu.buildFromTemplate([{ label: 'Show Nod.ie', click: () => mainWindow.show() }, { label: 'Settings and security updates', click: showSettings }, { label: 'Reload', click: () => mainWindow.reload() }, { label: 'Developer tools', click: () => mainWindow.webContents.openDevTools({ mode: 'detach' }) }, { type: 'separator' }, { label: 'Quit', click: () => app.quit() }]);
+        win.webContents.on('context-menu', () => menu.popup());
+        return menu;
+    }
     app.whenReady().then(() => {
         if (process.argv.includes('--keep-awake')) keepAwake();
         session.defaultSession.setPermissionRequestHandler((contents, permission, callback, details) => {
             callback(contents === mainWindow?.webContents && contents.getURL() === pathToFileURL(path.join(__dirname, 'index.html')).href && permission === 'media');
         });
         session.defaultSession.setPermissionCheckHandler((contents, permission, _origin, details) => contents === mainWindow?.webContents && permission === 'media' && contents.getURL() === pathToFileURL(path.join(__dirname, 'index.html')).href);
-        mainWindow = secureWindow({ width: 300, height: 300, title: 'Nod.ie', frame: false, transparent: true, alwaysOnTop: true, resizable: false, skipTaskbar: true, ...(process.platform === 'linux' && !process.argv.includes('--fullscreen') ? { type: 'dock' } : {}) }, 'index.html');
-        // A Linux dock overlay avoids KWin's normal-window panel avoidance and resize drift.
-        mainWindow.setAlwaysOnTop(true, 'screen-saver');
-        const input = require('./lib/window-hit-test');
-        pointerTracker = process.platform === 'linux' && process.env.DISPLAY ? input.nativeInputRegion(mainWindow, logger) : input.trackPointer(mainWindow, require('electron').screen, () => Boolean(dragTimer));
-        windowMode=require('./lib/window-controls').windowControls(mainWindow,pointerTracker,globalShortcut);
-        const position = store.get('position');
-        const { screen } = require('electron');
-        const area = screen.getPrimaryDisplay().workArea;
-        if (position && Number.isFinite(position.x) && Number.isFinite(position.y) && screen.getAllDisplays().some(d => { const p = dragPosition({ x: 0, y: 0 }, { x: 0, y: 0 }, [position.x, position.y], [300, 300], d.bounds); return p[0] === position.x && p[1] === position.y; })) mainWindow.setPosition(position.x, position.y);
-        else mainWindow.setPosition(area.x + area.width - 350, area.y + area.height - 350);
-        if (process.argv.includes('--fullscreen')) mainWindow.webContents.once('did-finish-load', () => windowMode.action('fullscreen'));
-        mainWindow.on('moved', () => { if(windowMode.isFullscreen())return; const [x, y] = mainWindow.getPosition(); store.set('position', { x, y }); });
-        mainWindow.on('close', event => { if (!app.isQuitting) { event.preventDefault(); mainWindow.hide(); } });
-        const menu = Menu.buildFromTemplate([{ label: 'Show Nod.ie', click: () => mainWindow.show() }, { label: 'Settings and security updates', click: showSettings }, { label: 'Reload', click: () => mainWindow.reload() }, { label: 'Developer tools', click: () => mainWindow.webContents.openDevTools({ mode: 'detach' }) }, { type: 'separator' }, { label: 'Quit', click: () => app.quit() }]);
-        mainWindow.webContents.on('context-menu', () => menu.popup());
+        const menu = createMainWindow(process.argv.includes('--fullscreen'));
         const trayIcon = path.join(__dirname, 'assets/icons/tray.png');
         if (fs.existsSync(trayIcon)) { tray = new Tray(trayIcon); tray.setToolTip('Nod.ie'); tray.setContextMenu(menu); tray.on('click', () => mainWindow.show()); }
         shortcuts();
