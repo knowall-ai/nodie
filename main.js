@@ -1,5 +1,10 @@
-const { app, BrowserWindow, globalShortcut, Tray, Menu, ipcMain, dialog, Notification, session, shell, powerSaveBlocker } = require('electron');
+const { app, BrowserWindow, globalShortcut, Tray, Menu, ipcMain, dialog, Notification, session, shell, powerSaveBlocker, crashReporter } = require('electron');
 const path = require('node:path');
+// A fixed name keeps WM_CLASS "nodie" and ~/.config/nodie for checkout and packaged builds alike.
+app.setName('nodie');
+app.setPath('userData', require('./lib/paths').configDir());
+// Minidumps stay in ~/.config/nodie/Crashpad for local diagnosis; nothing is uploaded.
+crashReporter.start({ uploadToServer: false });
 const fs = require('node:fs');
 const { pathToFileURL } = require('node:url');
 const Store = require('electron-store');
@@ -16,13 +21,14 @@ function start() {
     const logger = new Logger(path.join(app.getPath('userData'), 'logs'));
     const diagnostics = new Diagnostics({ logger, notify: count => { if (Notification.isSupported()) new Notification({ title: 'Nod.ie: activity needs attention', body: `${count} health/activity signal(s). Open Settings to inspect; these may be expected changes.` }).show(); } });
     const historyStore = new (require('./lib/conversation-history').ConversationHistory)(path.join(require('node:os').homedir(), '.config/nodie/conversations/local.json'));
-    const journal = new (require('./lib/event-journal').EventJournal)(path.join(require('node:os').homedir(), '.config/nodie/events/journal.json'), {timezone:env.getConfig('NODIE_TIMEZONE') || Intl.DateTimeFormat().resolvedOptions().timeZone});
+    const eventsDir = (() => { const paths = require('./lib/paths'); try { return paths.eventsDir(env.getConfig('NODIE_EVENTS_DIR')); } catch { logger.write('warn', 'config.events-dir-invalid'); return paths.eventsDir(); } })();
+    const journal = new (require('./lib/event-journal').EventJournal)(path.join(eventsDir, 'journal.json'), {timezone:env.getConfig('NODIE_TIMEZONE') || Intl.DateTimeFormat().resolvedOptions().timeZone});
     let identityQueue=Promise.resolve();
     const identityChange=operation=>{const result=identityQueue.then(operation);identityQueue=result.catch(()=>{});return result;};
     const debug=(source,text)=>mainWindow?.webContents.send('debug-event',{source,text});
     journal.onEvent=event=>debug('Journal',`${event.source}: ${event.subject} — ${event.kind}${event.uncertain?' (uncertain)':''}`);
     void journal.load().catch(()=>console.warn('Event journal unavailable'));
-    const nodePublisher=new(require('./lib/node-status-publisher').NodeStatusPublisher)(path.join(require('node:os').homedir(),'.config/nodie/events/node-status.json'));
+    const nodePublisher=new(require('./lib/node-status-publisher').NodeStatusPublisher)(path.join(eventsDir,'node-status.json'));
     nodePublisher.start();app.on('before-quit',()=>nodePublisher.stop());
     const speakerRecognition = new (require('./lib/speaker-recognition').SpeakerRecognition)();
     const voice = new LocalVoice({ logger, historyStore, journal, speakerRecognition, avatarEnabled: () => config().AVATAR_ENABLED, diagnostics: () => diagnostics.status() });
