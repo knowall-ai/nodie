@@ -1,4 +1,4 @@
-const { app, BrowserWindow, globalShortcut, Tray, Menu, ipcMain, dialog, Notification, session, shell } = require('electron');
+const { app, BrowserWindow, globalShortcut, Tray, Menu, ipcMain, dialog, Notification, session, shell, powerSaveBlocker } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const { pathToFileURL } = require('node:url');
@@ -27,6 +27,9 @@ function start() {
     const speakerRecognition = new (require('./lib/speaker-recognition').SpeakerRecognition)();
     const voice = new LocalVoice({ logger, historyStore, journal, speakerRecognition, avatarEnabled: () => config().AVATAR_ENABLED, diagnostics: () => diagnostics.status() });
     let windowMode;
+    const launchFlags = require('./lib/launch-flags');
+    const tvMode = process.argv.includes('--fullscreen');
+    const keepAwake = launchFlags.displayKeepAwake(powerSaveBlocker, app);
     let mainWindow, pointerTracker, settingsWindow, tray, monitor, dragTimer, dragDeadline, dragMoved = false, updateDrag;
     const stopDrag = () => { updateDrag?.(); clearInterval(dragTimer); clearTimeout(dragDeadline); dragTimer = null; updateDrag = null; return dragMoved; };
     const config = () => normalize({ ...env, ...Object.fromEntries(Object.entries(aliases).map(([key, alias]) => [key, store.get(alias) ?? env[key]])) });
@@ -217,26 +220,33 @@ function start() {
         if (result.response !== 1 || !result.checkboxChecked) return { status: 'cancelled' };
         return monitor.apply(id);
     }, true);
-    app.whenReady().then(() => {
-        session.defaultSession.setPermissionRequestHandler((contents, permission, callback, details) => {
-            callback(contents === mainWindow?.webContents && contents.getURL() === pathToFileURL(path.join(__dirname, 'index.html')).href && permission === 'media');
-        });
-        session.defaultSession.setPermissionCheckHandler((contents, permission, _origin, details) => contents === mainWindow?.webContents && permission === 'media' && contents.getURL() === pathToFileURL(path.join(__dirname, 'index.html')).href);
-        mainWindow = secureWindow({ width: 300, height: 300, title: 'Nod.ie', frame: false, transparent: true, alwaysOnTop: true, resizable: false, skipTaskbar: true, ...(process.platform === 'linux' ? { type: 'dock' } : {}) }, 'index.html');
+    function createMainWindow() {
+        mainWindow = secureWindow({ width: 300, height: 300, title: 'Nod.ie', frame: false, transparent: true, alwaysOnTop: true, resizable: false, skipTaskbar: true, ...(process.platform === 'linux' && !tvMode ? { type: 'dock' } : {}) }, 'index.html');
         // A Linux dock overlay avoids KWin's normal-window panel avoidance and resize drift.
         mainWindow.setAlwaysOnTop(true, 'screen-saver');
         const input = require('./lib/window-hit-test');
         pointerTracker = process.platform === 'linux' && process.env.DISPLAY ? input.nativeInputRegion(mainWindow, logger) : input.trackPointer(mainWindow, require('electron').screen, () => Boolean(dragTimer));
-        windowMode=require('./lib/window-controls').windowControls(mainWindow,pointerTracker,globalShortcut);
+        const win = mainWindow;
+        windowMode=require('./lib/window-controls').windowControls(win,pointerTracker,globalShortcut,{tvMode});
         const position = store.get('position');
         const { screen } = require('electron');
         const area = screen.getPrimaryDisplay().workArea;
         if (position && Number.isFinite(position.x) && Number.isFinite(position.y) && screen.getAllDisplays().some(d => { const p = dragPosition({ x: 0, y: 0 }, { x: 0, y: 0 }, [position.x, position.y], [300, 300], d.bounds); return p[0] === position.x && p[1] === position.y; })) mainWindow.setPosition(position.x, position.y);
         else mainWindow.setPosition(area.x + area.width - 350, area.y + area.height - 350);
-        mainWindow.on('moved', () => { if(windowMode.isFullscreen())return; const [x, y] = mainWindow.getPosition(); store.set('position', { x, y }); });
-        mainWindow.on('close', event => { if (!app.isQuitting) { event.preventDefault(); mainWindow.hide(); } });
+        if (tvMode) windowMode.action('fullscreen');
+        win.on('moved', () => { if(windowMode.isFullscreen())return; const [x, y] = win.getPosition(); store.set('position', { x, y }); });
+        win.on('close', event => { if (!app.isQuitting) { event.preventDefault(); win.hide(); } });
         const menu = Menu.buildFromTemplate([{ label: 'Show Nod.ie', click: () => mainWindow.show() }, { label: 'Settings and security updates', click: showSettings }, { label: 'Reload', click: () => mainWindow.reload() }, { label: 'Developer tools', click: () => mainWindow.webContents.openDevTools({ mode: 'detach' }) }, { type: 'separator' }, { label: 'Quit', click: () => app.quit() }]);
-        mainWindow.webContents.on('context-menu', () => menu.popup());
+        win.webContents.on('context-menu', () => menu.popup());
+        return menu;
+    }
+    app.whenReady().then(() => {
+        if (process.argv.includes('--keep-awake')) keepAwake();
+        session.defaultSession.setPermissionRequestHandler((contents, permission, callback, details) => {
+            callback(contents === mainWindow?.webContents && contents.getURL() === pathToFileURL(path.join(__dirname, 'index.html')).href && permission === 'media');
+        });
+        session.defaultSession.setPermissionCheckHandler((contents, permission, _origin, details) => contents === mainWindow?.webContents && permission === 'media' && contents.getURL() === pathToFileURL(path.join(__dirname, 'index.html')).href);
+        const menu = createMainWindow();
         const trayIcon = path.join(__dirname, 'assets/icons/tray.png');
         if (fs.existsSync(trayIcon)) { tray = new Tray(trayIcon); tray.setToolTip('Nod.ie'); tray.setContextMenu(menu); tray.on('click', () => mainWindow.show()); }
         shortcuts();
@@ -259,5 +269,14 @@ function start() {
         })().catch(() => {});
     });
     app.on('will-quit', () => globalShortcut.unregisterAll());
-    app.on('second-instance', () => { mainWindow?.show(); mainWindow?.focus(); });
+    app.on('second-instance', (_event, commandLine) => {
+        void app.whenReady().then(() => launchFlags.applySecondLaunch(commandLine, {
+            window: mainWindow, tvMode, keepAwake,
+            notify: message => {
+                console.info(message);
+                logger.write('info', 'desktop.tv-mode-restart-required');
+                if (Notification.isSupported()) new Notification({ title: 'Nod.ie: TV mode', body: message }).show();
+            }
+        }));
+    });
 }
