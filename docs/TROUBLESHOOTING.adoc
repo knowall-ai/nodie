@@ -20,4 +20,12 @@
 
 === Settings changes and silent recordings
 
+For Sofa/TV launches use `--tv`. Nodie then keeps a full-window layout when
+Sofa resizes it for screen-in-screen, hides its floating/tray mode controls and
+does not restore the old compact geometry on an external fullscreen exit.
+Settings uses a fullscreen window with directional form navigation; Back closes
+Settings without saving. Device captions show the microphone and voice-mute
+actions. The camera-on icon is included locally, avoiding a broken image when
+focus temporarily replaces the live preview. SIGTERM uses normal quit cleanup.
+
 Desktop settings attempts log `settings.saved` or `settings.failed` with a validation/storage/apply stage and no setting values. Failed saves keep the panel open and scroll to the error. A successful transcription with no recognised words reports `no-speech`, not an unavailable speech service; try a clear recording before investigating service health.

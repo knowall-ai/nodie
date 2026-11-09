@@ -96,12 +96,14 @@ class AvatarControls {
             this.mic.setAttribute('aria-pressed', String(micOn));
             this.mic.dataset.on = String(micOn);
             this.mic.setAttribute('aria-busy', String(local?.state === 'starting'));
+            this.mic.setAttribute('aria-label', local?.state === 'starting' ? 'Opening microphone' : micOn ? 'Turn microphone off' : 'Turn microphone on');
             this.mic.title = local?.state === 'starting' ? 'Opening microphone' : micOn ? (local && local.state !== 'recording' ? 'Listening enabled; microphone paused during reply' : 'Listening enabled') : 'Microphone off';
             this.mic.querySelector('img').src = this.icon(micOn ? 'mic' : 'mic-off');
         }
         if (this.speaker) {
             const on = !state.speakerMuted;
             this.speaker.setAttribute('aria-pressed', String(on));
+            this.speaker.setAttribute('aria-label', on ? 'Mute Nodie voice' : 'Unmute Nodie voice');
             this.speaker.dataset.on = String(on);
             this.speaker.title = on ? 'Speaker on' : 'Speaker off';
             this.speaker.querySelector('img').src = this.icon(on ? 'volume-2' : 'volume-x');

@@ -18,3 +18,12 @@ test('Escape shortcut exists only while fullscreen is visible',()=>{
  w.focused=true;w.emit('focus');assert.ok(keys.has('Escape'));
  keys.get('Escape')();w.emit('leave-full-screen');assert.equal(keys.has('Escape'),false);
 });
+test('TV mode rejects floating/tray controls and preserves Sofa geometry on external fullscreen exit',()=>{
+ const w=new EventEmitter();w.webContents=new EventEmitter();const modes=[];w.webContents.send=(_channel,value)=>modes.push(value);let restores=0,interactive=false;
+ Object.assign(w,{isFocused:()=>true,isVisible:()=>true,getBounds:()=>({x:0,y:0,width:300,height:300}),setBounds:()=>restores++,setAlwaysOnTop:()=>{},setResizable:()=>{},setFullScreen:value=>w.full=value,isFullScreen:()=>w.full});
+ const keys=new Map();const c=windowControls(w,{setFullScreen:value=>interactive=value},{register:(key,fn)=>keys.set(key,fn),unregister:key=>keys.delete(key)},{tv:true});
+ c.action('fullscreen');assert.equal(keys.has('Escape'),false);
+ assert.throws(()=>c.action('restore'),/Use Sofa/);assert.throws(()=>c.action('tray'),/Use Sofa/);
+ w.full=false;w.emit('leave-full-screen');assert.equal(restores,0);assert.equal(interactive,true);assert.equal(modes.at(-1).tv,true);assert.equal(modes.at(-1).fullscreen,false);
+ let prevented=false;w.webContents.emit('before-input-event',{preventDefault:()=>prevented=true},{type:'keyDown',key:'Escape'});assert.equal(prevented,false);
+});

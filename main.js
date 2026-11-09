@@ -46,7 +46,9 @@ function start() {
     }
     function showSettings() {
         if (settingsWindow && !settingsWindow.isDestroyed()) return settingsWindow.focus();
-        settingsWindow = secureWindow({ width: 780, height: 850, parent: mainWindow, title: 'Nod.ie Settings' }, 'settings.html');
+        const tv = process.argv.includes('--tv') || process.argv.includes('--fullscreen');
+        settingsWindow = secureWindow({ width: 780, height: 850, parent: mainWindow, title: 'Nod.ie Settings', show: false, ...(tv ? { fullscreen: true, frame: false, autoHideMenuBar: true, skipTaskbar: true } : {}) }, 'settings.html');
+        settingsWindow.once('ready-to-show', () => { settingsWindow?.show(); settingsWindow?.focus(); });
         settingsWindow.on('closed', () => { settingsWindow = null; });
     }
     function shortcuts() {
@@ -182,7 +184,7 @@ function start() {
         try { pointerTracker?.setRegions(value); } catch { logger.write('warn', 'overlay.invalid-hit-regions'); }
     });
     ipcMain.on('begin-drag', event => {
-        if (!trusted(event) || event.sender !== mainWindow.webContents || dragTimer || windowMode?.isFullscreen()) return;
+        if (!trusted(event) || event.sender !== mainWindow.webContents || dragTimer || windowMode?.isFullscreen() || process.argv.includes('--tv')) return;
         const { screen } = require('electron');
         const origin = screen.getCursorScreenPoint();
         const start = mainWindow.getPosition();
@@ -222,18 +224,19 @@ function start() {
             callback(contents === mainWindow?.webContents && contents.getURL() === pathToFileURL(path.join(__dirname, 'index.html')).href && permission === 'media');
         });
         session.defaultSession.setPermissionCheckHandler((contents, permission, _origin, details) => contents === mainWindow?.webContents && permission === 'media' && contents.getURL() === pathToFileURL(path.join(__dirname, 'index.html')).href);
-        mainWindow = secureWindow({ width: 300, height: 300, title: 'Nod.ie', frame: false, transparent: true, alwaysOnTop: true, resizable: false, skipTaskbar: true, ...(process.platform === 'linux' ? { type: 'dock' } : {}) }, 'index.html');
+        mainWindow = secureWindow({ width: 300, height: 300, title: 'Nod.ie', frame: false, transparent: true, alwaysOnTop: true, resizable: false, skipTaskbar: true, ...(process.platform === 'linux' && !process.argv.includes('--fullscreen') && !process.argv.includes('--tv') ? { type: 'dock' } : {}) }, 'index.html');
         // A Linux dock overlay avoids KWin's normal-window panel avoidance and resize drift.
         mainWindow.setAlwaysOnTop(true, 'screen-saver');
         const input = require('./lib/window-hit-test');
         pointerTracker = process.platform === 'linux' && process.env.DISPLAY ? input.nativeInputRegion(mainWindow, logger) : input.trackPointer(mainWindow, require('electron').screen, () => Boolean(dragTimer));
-        windowMode=require('./lib/window-controls').windowControls(mainWindow,pointerTracker,globalShortcut);
+        windowMode=require('./lib/window-controls').windowControls(mainWindow,pointerTracker,globalShortcut,{tv:process.argv.includes('--tv')});
         const position = store.get('position');
         const { screen } = require('electron');
         const area = screen.getPrimaryDisplay().workArea;
         if (position && Number.isFinite(position.x) && Number.isFinite(position.y) && screen.getAllDisplays().some(d => { const p = dragPosition({ x: 0, y: 0 }, { x: 0, y: 0 }, [position.x, position.y], [300, 300], d.bounds); return p[0] === position.x && p[1] === position.y; })) mainWindow.setPosition(position.x, position.y);
         else mainWindow.setPosition(area.x + area.width - 350, area.y + area.height - 350);
-        mainWindow.on('moved', () => { if(windowMode.isFullscreen())return; const [x, y] = mainWindow.getPosition(); store.set('position', { x, y }); });
+        if (process.argv.includes('--fullscreen') || process.argv.includes('--tv')) mainWindow.webContents.once('did-finish-load', () => windowMode.action('fullscreen'));
+        mainWindow.on('moved', () => { if(windowMode.isFullscreen() || process.argv.includes('--tv'))return; const [x, y] = mainWindow.getPosition(); store.set('position', { x, y }); });
         mainWindow.on('close', event => { if (!app.isQuitting) { event.preventDefault(); mainWindow.hide(); } });
         const menu = Menu.buildFromTemplate([{ label: 'Show Nod.ie', click: () => mainWindow.show() }, { label: 'Settings and security updates', click: showSettings }, { label: 'Reload', click: () => mainWindow.reload() }, { label: 'Developer tools', click: () => mainWindow.webContents.openDevTools({ mode: 'detach' }) }, { type: 'separator' }, { label: 'Quit', click: () => app.quit() }]);
         mainWindow.webContents.on('context-menu', () => menu.popup());
@@ -259,5 +262,8 @@ function start() {
         })().catch(() => {});
     });
     app.on('will-quit', () => globalShortcut.unregisterAll());
+    // Sofa closes its managed apps with SIGTERM; use the normal device cleanup.
+    process.once('SIGTERM', () => app.quit());
+    process.once('SIGINT', () => app.quit());
     app.on('second-instance', () => { mainWindow?.show(); mainWindow?.focus(); });
 }
