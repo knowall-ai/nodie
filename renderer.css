@@ -282,14 +282,28 @@ body[data-platform="electron"] #circle { touch-action: none; user-select: none; 
 .orbit-control {
     position: absolute; width: 40px; height: 40px; padding: 9px;
     display: flex; align-items: center; justify-content: center;
-    border: 2px solid #f5a623; border-radius: 50%; background: #f5a623;
+    border: 2px solid #f7931a; border-radius: 50%; background: #f7931a;
     box-shadow: 0 2px 7px #0008; cursor: pointer; pointer-events: auto;
     -webkit-app-region: no-drag; touch-action: manipulation;
 }
 .orbit-control img { width: 20px; height: 20px; pointer-events: none; }
-.orbit-control[data-on="false"] { background: #e1c39b; }
-.orbit-control:hover { background: #ffd45c; }
-.orbit-control:focus-visible { outline: 2px solid #fff1b8; outline-offset: 2px; }
+.orbit-control[data-on="false"] { background: #f7931a; }
+.orbit-control:hover { background: #ff9f2e; }
+.orbit-control:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.orbit-control:focus, #control-camera:focus {
+    outline: 5px solid #fff; outline-offset: 5px;
+    background: #ff8c00; transform: scale(1.15); z-index: 2;
+    box-shadow: 0 0 0 11px #9c4c00, 0 0 32px 12px #ff8c00cc;
+}
+.orbit-control:focus .camera-preview { display: none; }
+.orbit-control:focus img { display: block !important; }
+body.fullscreen .orbit-control:focus::after {
+    content: attr(aria-label); position: absolute; bottom: calc(100% + 22px);
+    left: 50%; transform: translateX(-50%); white-space: nowrap;
+    background: #17120a; color: #fff; padding: 8px 16px;
+    border: 2px solid #fff; border-radius: 8px;
+    font: 700 20px/1.2 sans-serif; pointer-events: none;
+}
 .orbit-control[aria-disabled="true"] { background: #95816c; border-color: #c5a37a; cursor: not-allowed; }
 .orbit-control:disabled { opacity: .65; cursor: wait; }
 #control-mic { left: 17px; top: 183px; }
@@ -323,9 +337,10 @@ body[data-platform="electron"] #circle { touch-action: none; user-select: none; 
 
 /* The live preview fills the camera control, inside its amber border. */
 #control-camera { overflow: hidden; isolation: isolate; }
+body.fullscreen #control-camera:focus { overflow: visible; }
 #control-camera .camera-preview { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; pointer-events: none; }
 #control-camera .camera-preview[hidden], #control-camera img[hidden] { display: none; }
-#control-camera[data-on="true"] { background: #291507; border-color: #f5a623; }
+#control-camera[data-on="true"] { background: #291507; border-color: #f7931a; }
 
 /* Button centres lie on the 125px avatar radius, at -40 and -57 degrees. */
 #control-fullscreen, #control-tray { width:28px; height:28px; padding:5px; border-width:1.5px; box-sizing:border-box; }
