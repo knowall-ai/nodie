@@ -31,32 +31,25 @@ function fakeWindow() {
     const calls = [];
     return { calls, isDestroyed: () => false, isMinimized: () => true, restore: () => calls.push('restore'), show: () => calls.push('show'), focus: () => calls.push('focus') };
 }
-function fakeMode(full = false) {
-    const actions = [];
-    return { actions, isFullscreen: () => full, action: value => { actions.push(value); full = value === 'fullscreen'; } };
-}
-
-test('a second launch shows, focuses and applies forwarded flags', () => {
-    const window = fakeWindow(), windowMode = fakeMode(); let awake = 0;
-    applySecondLaunch(['/usr/bin/nodie', '--fullscreen', '--keep-awake'], { window, windowMode, keepAwake: () => awake++ });
+test('forwarded fullscreen requests a restart without changing a compact window', () => {
+    const window = fakeWindow(), notices = []; let awake = 0;
+    applySecondLaunch(['nodie', '--fullscreen', '--keep-awake'], { window, tvMode: false, keepAwake: () => awake++, notify: message => notices.push(message) });
     assert.deepEqual(window.calls, ['restore', 'show', 'focus']);
-    assert.deepEqual(windowMode.actions, ['fullscreen']);
+    assert.deepEqual(notices, ['Restart Nod.ie with --fullscreen to use TV mode']);
     assert.equal(awake, 1);
 });
 
-test('a second launch without flags only shows and focuses; already-fullscreen is left alone', () => {
-    const window = fakeWindow(), plain = fakeMode(); let awake = 0;
-    applySecondLaunch(['/usr/bin/nodie'], { window, windowMode: plain, keepAwake: () => awake++ });
-    assert.deepEqual(window.calls, ['restore', 'show', 'focus']);
-    assert.deepEqual(plain.actions, []);
-    assert.equal(awake, 0);
-    const full = fakeMode(true);
-    applySecondLaunch(['nodie', '--fullscreen'], { window: fakeWindow(), windowMode: full, keepAwake: () => {} });
-    assert.deepEqual(full.actions, []);
+test('plain launches and fullscreen forwarded to TV mode just show and focus', () => {
+    for (const [argv, tvMode] of [[['nodie'], false], [['nodie'], true], [['nodie', '--fullscreen'], true]]) {
+        const window = fakeWindow(); let awake = 0;
+        applySecondLaunch(argv, { window, tvMode, keepAwake: () => awake++, notify: () => assert.fail('Unexpected notice') });
+        assert.deepEqual(window.calls, ['restore', 'show', 'focus']);
+        assert.equal(awake, 0);
+    }
 });
 
 test('keep-awake still applies before the window exists', () => {
     let awake = 0;
-    applySecondLaunch(['nodie', '--keep-awake', '--fullscreen'], { window: null, windowMode: null, keepAwake: () => awake++ });
+    applySecondLaunch(['nodie', '--keep-awake'], { window: null, keepAwake: () => awake++ });
     assert.equal(awake, 1);
 });
