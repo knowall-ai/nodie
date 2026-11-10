@@ -9,9 +9,11 @@ const NONE = { theme: null, background: null };
 const temp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'nodie-sofa-'));
 
 test('config path follows XDG_CONFIG_HOME, else ~/.config', () => {
-    assert.equal(sofaConfigPath({ XDG_CONFIG_HOME: '/x/conf' }, '/home/u'), '/x/conf/sofa-launcher/config.toml');
-    assert.equal(sofaConfigPath({}, '/home/u'), '/home/u/.config/sofa-launcher/config.toml');
-    assert.equal(sofaConfigPath({ XDG_CONFIG_HOME: 'relative' }, '/home/u'), '/home/u/.config/sofa-launcher/config.toml', 'a relative XDG path is ignored, as the spec requires');
+    const xdg = path.resolve('/x/conf'), home = path.resolve('/home/u');
+    const fallback = path.join(home, '.config', 'sofa-launcher', 'config.toml');
+    assert.equal(sofaConfigPath({ XDG_CONFIG_HOME: xdg }, home), path.join(xdg, 'sofa-launcher', 'config.toml'));
+    assert.equal(sofaConfigPath({}, home), fallback);
+    assert.equal(sofaConfigPath({ XDG_CONFIG_HOME: 'relative' }, home), fallback, 'a relative XDG path is ignored, as the spec requires');
 });
 
 test('reads both themes and a picture or gradient background from [ui]', () => {

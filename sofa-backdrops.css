@@ -69,8 +69,8 @@
 }
 
 /* Remote focus ring and glow follow Sofa's theme accent; the buttons stay Nod.ie orange. */
-:root[data-sofa-theme] body.fullscreen .orbit-control:focus,
-:root[data-sofa-theme] body.fullscreen #control-camera:focus {
+:root[data-sofa-theme] body.tv-fullscreen .orbit-control:focus,
+:root[data-sofa-theme] body.tv-fullscreen #control-camera:focus {
     box-shadow: 0 0 0 11px color-mix(in srgb, var(--sofa-accent-strong) 70%, #000), 0 0 32px 12px var(--sofa-accent-glow);
 }
-:root[data-sofa-theme] body.fullscreen .orbit-control:focus::after { border-color: var(--sofa-accent); }
+:root[data-sofa-theme] body.tv-fullscreen .orbit-control:focus::after { border-color: var(--sofa-accent); }
