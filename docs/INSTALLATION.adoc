@@ -70,7 +70,7 @@ preserving microphone state and conversations.
 |Flag |Behaviour
 |none |Compact floating avatar (unchanged). Linux uses `type: 'dock'` to avoid KWin panel avoidance and resize drift. Full screen is a toggle; Escape restores the previous position and size.
 |`--fullscreen` |Standalone full screen that Nod.ie owns, for a TV PC without a launcher: `npm start -- --fullscreen --keep-awake`. Escape, Restore controls and voice restore requests are ignored. If the window manager leaves full screen, Nod.ie re-enters it (on X11 Electron does not report this exit, so it is detected from the window bounds).
-|`--tv` |Managed by a TV launcher such as Sofa Launcher (which runs `nodie-desktop --tv`). Nod.ie starts full screen but never fights the launcher: when the launcher un-fullscreens and moves it (Sofa's screen-in-screen corner), Nod.ie keeps that geometry, keeps the full-window layout and never saves it as the floating position. Restore and tray requests are refused ("Use the TV launcher"), the floating/tray buttons are hidden, Escape is left to the page, and full-screen Nod.ie is not always-on-top so launcher menus can appear above it. Arrow keys reach every button (nearest in that direction, including Debug above the device controls); OK presses it; Ctrl+Shift+C/M/S toggle camera, microphone and speaker. Settings opens full screen with directional navigation. SIGTERM uses the normal quit cleanup. While full screen, Nod.ie paints the launcher's background (see below).
+|`--tv` |Managed by a TV launcher such as Sofa Launcher (which runs `nodie-desktop --tv`). Nod.ie starts full screen but never fights the launcher: when the launcher un-fullscreens and moves it (Sofa's screen-in-screen corner), Nod.ie keeps that geometry, keeps the full-window layout and never saves it as the floating position. Restore and tray requests are refused ("Use the TV launcher"), the floating/tray buttons are hidden, Escape is left to the page, and full-screen Nod.ie is not always-on-top so launcher menus can appear above it. Arrow keys reach every button (nearest in that direction, including Debug above the device controls); OK presses it; Ctrl+Shift+C/M/S toggle camera, microphone and speaker. Settings opens as a TV settings screen (see below). SIGTERM uses the normal quit cleanup. While full screen, Nod.ie paints the launcher's background (see below).
 |===
 
 If both mode flags are given, `--tv` wins. Quit and restart to change mode. Add the
@@ -91,6 +91,25 @@ Every visible button in the full-screen avatar window can be reached with the ar
 to the nearest control in that direction. Up from the device controls reaches Debug, and Down
 returns to the control you came from. OK toggles Debug; the button reads "Debug on"/"Debug off".
 With Debug on, the log takes focus and scrolls with Up/Down, and Back switches Debug off.
+
+=== TV settings screen (`--tv` and `--fullscreen`)
+
+In both full-screen modes, Settings is a TV screen with section names on the left and one
+section on the right, sized in 1%-of-screen-width units like Sofa Launcher. Up/Down move through
+the sections; Right or OK enters one; Up/Down then move through its controls in reading order and
+Left/Right between controls on the same row. Left at the edge, or Back, returns to the list;
+Back from the list closes Settings. Switches toggle with OK and show On/Off. Choice lists open
+as an on-screen list (Up/Down, OK chooses, Back cancels). Status blocks that overflow scroll with
+Up/Down. Changes apply immediately, with a short "Saved" confirmation; an invalid value is
+reported and put back. Destructive actions (forgetting profiles, clearing history or the event
+journal, unlinking a person, applying an update) ask first, with Cancel selected.
+
+Text fields stay editable: under Sofa Launcher, select the field, open Sofa's menu →
+Keyboard / mic and type (Sofa types into the app in front), then press OK to save. Back discards
+an unsaved edit. In `--fullscreen` without Sofa a keyboard is needed for these fields.
+The desktop Settings window is unchanged. The TV layout is `settings-tv.css` and
+`modules/settings-tv.js`, which reorganise the same `settings.html`; key routing is
+`modules/tv-settings-nav.js`.
 
 === Sofa Launcher backdrop (`--tv` only)
 
