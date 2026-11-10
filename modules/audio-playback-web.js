@@ -7,6 +7,8 @@ class AudioPlaybackWeb {
         this.muted = false;
         this.interrupted = false;
         this.generation = 0;
+        this.decodingUntil = 0;
+        this.announcementUntil = 0;
         this.outputGain = null;
         this.audioContext = null;
         this.audioWorklet = null;
@@ -58,7 +60,9 @@ class AudioPlaybackWeb {
             this.decoderWorker.onmessage = (event) => {
                 if (!event.data || this.interrupted || event.data.generation !== this.generation) return;
                 
+                this.decodingUntil = Date.now() + 1000;
                 const frame = event.data.frames?.[0];
+                if (frame) this.announcementUntil = Math.max(this.announcementUntil, this.audioContext.currentTime + .25) + frame.length / this.audioContext.sampleRate;
                 if (frame) {
                     const lips = window.NodieRenderer?.streamingLips;
                     if (lips?.enabled()) { lips.push(frame, this.audioContext.sampleRate); return; }
@@ -119,6 +123,7 @@ class AudioPlaybackWeb {
             console.debug('🔊 Processing audio delta');
             // Create a copy to avoid buffer transfer issues
             const audioDataCopy = new Uint8Array(audioData);
+            this.decodingUntil = Date.now() + 1000;
             this.decoderWorker.postMessage({
                 command: 'decode',
                 generation,
@@ -131,7 +136,12 @@ class AudioPlaybackWeb {
 
     
 
+    announcementBusy() {
+        return Date.now() < this.decodingUntil || Boolean(this.audioContext && this.audioContext.currentTime < this.announcementUntil);
+    }
+
     interrupt() {
+        this.decodingUntil = 0; this.announcementUntil = 0;
         // Keep the Opus decoder alive: subsequent pages belong to the same stream.
         this.interrupted = true;
         ++this.generation;

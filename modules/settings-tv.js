@@ -20,7 +20,7 @@
     const make = (tag, props = {}, ...children) => { const node = Object.assign(document.createElement(tag), props); node.append(...children); return node; };
     const NAMES = { 'Avatar Settings': 'Avatar', 'Connection Settings': 'Connection', 'Keyboard Shortcuts': 'Shortcuts', 'Security and container updates': 'Updates', 'Health and unusual activity': 'Health', 'People': 'Voices and history', 'People — faces': 'Faces', 'Visual curiosity': 'Curiosity', 'Linked people and memory': 'Linked people', 'Event journal': 'Event journal' };
     // Settings saved one key at a time (the main process validates a partial patch).
-    const CONFIG = { avatarEnabled: 'AVATAR_ENABLED', avatarIdleEnabled: 'AVATAR_IDLE_ENABLED', curiosityLevel: 'CURIOSITY_LEVEL', assistantName: 'ASSISTANT_NAME', unmuteBackendUrl: 'UNMUTE_BACKEND_URL', voiceModel: 'VOICE_MODEL', globalHotkey: 'GLOBAL_HOTKEY' };
+    const CONFIG = { announcementsEnabled: 'ANNOUNCEMENTS_ENABLED', avatarEnabled: 'AVATAR_ENABLED', avatarIdleEnabled: 'AVATAR_IDLE_ENABLED', curiosityLevel: 'CURIOSITY_LEVEL', assistantName: 'ASSISTANT_NAME', unmuteBackendUrl: 'UNMUTE_BACKEND_URL', voiceModel: 'VOICE_MODEL', globalHotkey: 'GLOBAL_HOTKEY' };
     // Destructive buttons that settings.js runs without its own confirm().
     const GUARDED = [['#clear-history', 'Clear the saved conversation history? Reverie memories remain.'], ['#people-list button', 'Unlink this person? Their face and voice profiles are kept.'], ['#apply', 'Apply this update? The service will restart; a second confirmation follows.']];
 

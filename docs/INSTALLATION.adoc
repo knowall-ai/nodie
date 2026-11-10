@@ -145,3 +145,33 @@ The same optional read-only events-directory mount carries a compact Bitcoin/Lig
 Append `-f unmute-service/compose.events.yml` to the backend Compose overlays to enable the optional read-only journal/node bridge. Create the events directory as the desktop user with mode 0700 before recreating the backend; the bind refuses to create a missing host directory. Files are 0600, so the backend must run as that UID or as container root. A different non-root UID receives unavailable context rather than changing permissions. The journal records the desktop system timezone, which the backend uses by default (UTC for older journals without timezone metadata). To override it, set the same IANA `NODIE_TIMEZONE` for desktop and Compose.
 
 The Unmute Compose overlay requires `LLM_MODEL` to name an installed model with image support; it no longer silently selects a workstation-specific model alias. Pass your configuration with Compose's `--env-file` or export the variable. `OLLAMA_NUM_CTX` defaults to 8192 and may be overridden to fit the model and hardware.
+
+
+=== Local app announcements
+
+Start the desktop normally before running `nodie --say "Someone's at the front door"`
+(or `npm start -- --say "Someone's at the front door"` from the checkout).
+`--say=Text` is also accepted. Pass text as one argument; do not interpolate untrusted
+text into a shell command. A cold command exits 1 with a message, since normal desktop
+startup enables listening; invalid input exits 2. Forwarding to an existing instance
+exits normally without showing or focusing its window, even alongside window-mode flags.
+Delivery is best-effort and the caller does not receive a playback acknowledgement.
+
+In local mode announcements use `LOCAL_TTS_URL` and its configured voice/speed. In Unmute
+mode set `KYUTAI_TTS_URL` to the moshi speech server (default `ws://127.0.0.1:8089`).
+This is separate from `UNMUTE_BACKEND_URL`: the app calls `/api/tts_streaming` directly
+using the selected `VOICE_MODEL`, `PcmMessagePack`, and the deployment's `public_token`
+Kyutai API header. Make the TTS endpoint reachable, preferably via a loopback port mapping;
+no containers or models are started by the command. Custom cloned Unmute voices are not
+supported by this direct interface; use an installed moshi voice file.
+
+The Connection Settings announcement toggle defaults on and is persisted locally.
+Disabled commands and delivery failures are logged without announcement text. Input
+is stripped of C0/C1 control characters, trimmed, then limited to 1–200 Unicode code
+points. One command is admitted per five seconds with one waiting slot. Playback waits
+for recording/response generation/current audio to finish and must start within ten
+seconds of receipt, including synthesis; otherwise it is dropped. Backend failure
+shows an in-app notice and, where supported, a desktop notification. Speaker mute is
+respected. The command never calls STT, an LLM, memory or conversation history and never
+starts/resumes microphone capture. Existing realtime capture continues but does not
+forward microphone audio during announcement synthesis/playback.

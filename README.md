@@ -20,6 +20,26 @@ Open http://127.0.0.1:8095 on the same computer. In local mode, click the avatar
 
 The optional CPU voice uses Kokoro and two inference threads. Run `bash scripts/setup-cpu-voice.sh`, then `bash scripts/start-voice-service.sh`; configure `LOCAL_TTS_URL=http://127.0.0.1:8104`. No large speech services are started automatically. Voice quality and latency depend on the selected services and available resources.
 
+## Announcements from local apps
+
+Start Nod.ie normally first, then let Sofa Launcher or another local app announce text:
+
+```bash
+nodie --say "Someone's at the front door"
+# From this checkout:
+npm start -- --say "Someone's at the front door"
+```
+
+`--say="Text"` also works. Quote the text as one shell argument, or pass `['--say', text]` in your launcher's process API. The command forwards to the running Electron instance without opening or focusing a window. If Nod.ie is not running, it prints a message and exits with code 1; malformed input exits with code 2. Cold startup normally enables listening, so announcements deliberately require an existing instance. A cold `--say` briefly acquires the single-instance lock to detect an existing instance, then releases it before exiting; a simultaneous normal launch can lose that race and should be retried. A successful forwarding process exits normally; this is best-effort delivery, not a playback acknowledgement.
+
+Text must be a string of 1–200 Unicode characters after newlines/tabs are replaced with spaces, other control characters are stripped and whitespace is trimmed. Speech uses that cleaned text verbatim through TTS; it never goes to an LLM, memory or conversation history. The command does not start or resume listening or open a microphone. Existing realtime microphone audio is withheld from the conversation backend during announcement synthesis/playback. Speaker mute is respected.
+
+At most one command is admitted per five seconds; extras are dropped. There is one waiting slot. Recording, user speech, response generation and buffered speech defer playback. Announcements must begin within ten seconds of receipt, including synthesis time, or are dropped. They do not interrupt a current utterance. Unavailable TTS produces a small notice without crashing.
+
+Settings → Connection Settings → **Allow other apps to make Nod.ie speak (announcements)** defaults ON. When OFF, commands are ignored and logged without their text. This is a local convenience interface for apps running in the same Electron user profile, not an authenticated messaging service.
+
+Local voice mode uses the configured `LOCAL_TTS_URL` service. Unmute mode connects directly to moshi at `KYUTAI_TTS_URL` (default `ws://127.0.0.1:8089`), using the selected `VOICE_MODEL`. The TTS port must be reachable from the Nod.ie host. A loopback binding on the speech server is accessible only from that server; remote clients such as warmachine/batman need a reachable `KYUTAI_TTS_URL` (for example via an SSH tunnel or private network). Otherwise `--say` falls back to the visible **Announcement unavailable** notice even when conversation works. The Unmute conversation backend on port 8767 does not provide this standalone TTS endpoint. Follow-up: add a bounded TTS proxy to unmute-backend so clients can reuse that connection; this needs a backend route and deployment change, rather than a client URL substitution. No service is started automatically. See [installation](docs/INSTALLATION.adoc).
+
 ## Updates and security
 
 Docker monitoring checks running containers at startup and every six hours while Nod.ie runs. It reports available releases, image changes and selected security advisories. Unknown or unreachable sources are reported explicitly; this is not a comprehensive vulnerability scanner. Desktop settings provide review and confirmation before supported Compose updates. Version migrations and managed stacks require their official update procedure.
