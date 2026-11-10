@@ -65,7 +65,8 @@ test('--fullscreen (Nod.ie-owned) uses one normal window; Escape, restore and wi
     assert.equal(win.options.type, undefined);
     assert.equal(win.nativeFull, true);
     assert.equal(d.keys.has('Escape'), false);
-    assert.equal(escape(win), true, 'Escape is swallowed, not passed on');
+    assert.equal(escape(win), false, 'Escape is left to the page (Back closes the debug log)');
+    assert.equal(win.nativeFull, true, 'and never leaves full screen');
     d.context.windowMode.action('restore');
     assert.equal(win.nativeFull, true);
     d.context.windowMode.action('tray');
