@@ -71,7 +71,9 @@
         document.addEventListener('keydown', onKey, true);
         document.addEventListener('click', guard, true);
         document.addEventListener('focusin', event => { if (sections[active]?.contains(event.target)) lastInPane = event.target; });
-        document.addEventListener('focusin', event => { if (isText(event.target) && !('tvSaved' in event.target.dataset)) event.target.dataset.tvSaved = event.target.value; });
+        // Back restores the value the field had when it was entered (settings.js may replace it,
+        // e.g. the person name when another person is chosen).
+        document.addEventListener('focusin', event => { if (isText(event.target)) event.target.dataset.tvSaved = event.target.value; });
         window.confirm = askInstead;
         // The window may not have focus yet when the layout is built.
         window.addEventListener('focus', () => { if (document.activeElement === document.body) (level === 'list' ? items[active] : controls()[0] || items[active]).focus(); });
@@ -94,10 +96,11 @@
 
     async function save(input, key) {
         const value = input.type === 'checkbox' ? input.checked : input.value;
-        if (isText(input) && input.dataset.tvSaved === input.value) return;
+        if (isText(input) && input.dataset.tvSaved === value) return;
         try {
             await api.saveSettings({ [key]: value });
-            if (isText(input)) input.dataset.tvSaved = input.value;
+            // Record what was saved, not what may have been typed since.
+            if (isText(input)) input.dataset.tvSaved = value;
             toast('Saved');
         } catch (error) {
             if (input.type === 'checkbox') input.checked = !value;
@@ -204,6 +207,7 @@
         focus();
     }
     function openChooser(select) {
+        if (!select.options.length) { toast('Nothing to choose yet'); return; }
         const label = select.closest('label')?.childNodes[0]?.textContent?.trim() || select.getAttribute('aria-label') || select.closest('.setting-row')?.querySelector('h3')?.textContent || 'Choose';
         openOverlay({
             title: label, options: [...select.options].map(option => option.textContent), index: Math.max(0, select.selectedIndex), origin: select, className: 'tv-chooser',
