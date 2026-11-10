@@ -65,3 +65,21 @@ Static-file escape tests use a real temporary target outside the served root,
 with a directory junction on Windows, so they do not require Developer Mode or
 symbolic-link creation privileges. Docker update tests mock all Docker commands;
 they do not update running containers or expand the supported Docker contexts.
+
+
+=== Local announcement regressions
+
+`tests/unit/announcements.test.js` covers argv/additionalData precedence, cleaned text
+boundaries, single-instance forwarding and cold exit codes, no window activation on
+forwarded commands, five-second admission, the persisted settings gate, bounded
+conversation deferral, expiry/disable during synthesis, and concurrent pulls.
+Mock HTTP/WebSocket TTS checks assert verbatim text, Kyutai Ready/Text/Eos/PCM framing,
+WAV conversion, unavailable/malformed/timeout recovery, and no conversation request.
+The output-only renderer harness mocks media paths and verifies speaker mute,
+no microphone opening or listening restart, buffered-audio deferral, cleanup,
+and empty polling leaving continuous listening alone. Run `npm test` without Electron.
+
+The announcement settings before/after screenshots are static Chromium fixtures of
+the real Connection Settings markup and stylesheet; they do not establish live
+Electron/audio behaviour. Live acceptance still requires the deployed TTS endpoint
+and speaker. Electron was deliberately not launched for this change.

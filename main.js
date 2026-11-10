@@ -10,7 +10,8 @@ const { SecurityMonitor } = require('./security/monitor');
 const { Logger } = require('./lib/logger');
 const { Diagnostics } = require('./lib/diagnostics');
 const { dragPosition } = require('./lib/window-drag');
-if (!app.requestSingleInstanceLock()) { app.quit(); } else { start(); }
+const { launch, parseSay, Announcements } = require('./lib/announcements');
+launch(app, process.argv, start);
 function start() {
     const store = new Store();
     const logger = new Logger(path.join(app.getPath('userData'), 'logs'));
@@ -34,6 +35,14 @@ function start() {
     let mainWindow, pointerTracker, settingsWindow, tray, monitor, dragTimer, dragDeadline, dragMoved = false, updateDrag;
     const stopDrag = () => { updateDrag?.(); clearInterval(dragTimer); clearTimeout(dragDeadline); dragTimer = null; updateDrag = null; return dragMoved; };
     const config = () => normalize({ ...env, ...Object.fromEntries(Object.entries(aliases).map(([key, alias]) => [key, store.get(alias) ?? env[key]])) });
+    const announcements = new Announcements({
+        enabled: () => config().ANNOUNCEMENTS_ENABLED,
+        synthesize: (text, timeout) => require('./lib/announcement-tts').synthesize(text, timeout, { config: (key, fallback) => config()[key] ?? env.getConfig(key, fallback) }),
+        log: code => {
+            logger.write('info', 'announcement.dropped', { code });
+            if (code === 'unavailable' && Notification.isSupported()) new Notification({ title: 'Nod.ie', body: 'Announcement unavailable: speech backend could not be reached.' }).show();
+        }
+    });
     const isLocalFrame = (event, file) => event.senderFrame === event.sender.mainFrame && event.senderFrame.url === pathToFileURL(path.join(__dirname, file)).href;
     const trusted = event => [mainWindow, settingsWindow].some(win => win && !win.isDestroyed() && event.sender === win.webContents) && (isLocalFrame(event, 'index.html') || isLocalFrame(event, 'settings.html'));
     const handle = (channel, callback, settingsOnly = false) => ipcMain.handle(channel, (event, ...args) => {
@@ -121,6 +130,8 @@ function start() {
     handle('vision-analyse' , image => vision.analyse(image));
     handle('vision-cancel', () => vision.cancel());
     app.on('before-quit', () => vision.cancel());
+    handle('announcement-pending', () => announcements.hasPending());
+    handle('announcement-take', busy => announcements.take(busy));
     handle('voice-health', () => voice.health());
     handle('voice-turn', async audio => {
         try { return await voice.converse(audio); }
@@ -295,7 +306,11 @@ function start() {
     // Sofa closes its managed apps with SIGTERM; use the normal device cleanup.
     process.once('SIGTERM', () => app.quit());
     process.once('SIGINT', () => app.quit());
-    app.on('second-instance', (_event, commandLine) => {
+    app.on('second-instance', (_event, commandLine, _directory, additionalData) => {
+        try {
+            const command = parseSay(commandLine, additionalData);
+            if (command) { announcements.offer(command.say); return; }
+        } catch { logger.write('warn', 'announcement.dropped', { code: 'invalid-text' }); return; }
         void app.whenReady().then(() => launchFlags.applySecondLaunch(commandLine, {
             window: mainWindow, mode: launchMode, keepAwake,
             notify: message => {

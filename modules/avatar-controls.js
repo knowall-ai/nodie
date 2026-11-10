@@ -71,6 +71,7 @@ class AvatarControls {
         if (typeof muted !== 'boolean') throw new Error('Invalid speaker state');
         const renderer = this.renderer;
         renderer.state.speakerMuted = muted;
+        if (renderer.announcements?.player) renderer.announcements.player.muted = muted;
         if (renderer.localVoice?.player) renderer.localVoice.player.muted = muted;
         renderer.state.audioPlayback?.setMuted(muted);
         renderer.streamingLips?.setMuted(muted);

@@ -18,6 +18,7 @@ class LocalVoiceSession {
         if (status) { status.textContent = text; status.style.display = text ? 'block' : 'none'; }
     }
     async toggle() {
+        if (this.renderer.announcements?.active) return;
         if (this.state === 'starting') { this.cancel(); return; }
         if (this.state === 'recording') { this.finish(); return; }
         if (this.state === 'processing' || this.state === 'speaking') { this.cancel(); this.status(''); return; }

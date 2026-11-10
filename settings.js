@@ -4,6 +4,7 @@ let currentPlan;
 const error = err => { el('settings-error').textContent = err.message || String(err); el('settings-error').scrollIntoView({ block: 'center' }); };
 async function load() {
     const config = await api.getConfig();
+    el('announcementsEnabled').checked = config.ANNOUNCEMENTS_ENABLED;
     el('curiosityLevel').value = config.CURIOSITY_LEVEL;
     el('avatarEnabled').checked = config.AVATAR_ENABLED;
     el('avatarIdleEnabled').checked = config.AVATAR_IDLE_ENABLED;
@@ -53,7 +54,7 @@ el('cancel').onclick = () => window.close();
 el('save').onclick = async () => {
     el('settings-error').textContent = '';
     el('save').disabled = true;
-    try { await api.saveSettings({ CURIOSITY_LEVEL: el('curiosityLevel').value, AVATAR_ENABLED: el('avatarEnabled').checked, AVATAR_IDLE_ENABLED: el('avatarIdleEnabled').checked, ASSISTANT_NAME: el('assistantName').value, UNMUTE_BACKEND_URL: el('unmuteBackendUrl').value, VOICE_MODEL: el('voiceModel').value, GLOBAL_HOTKEY: el('globalHotkey').value }); window.close(); }
+    try { await api.saveSettings({ ANNOUNCEMENTS_ENABLED: el('announcementsEnabled').checked, CURIOSITY_LEVEL: el('curiosityLevel').value, AVATAR_ENABLED: el('avatarEnabled').checked, AVATAR_IDLE_ENABLED: el('avatarIdleEnabled').checked, ASSISTANT_NAME: el('assistantName').value, UNMUTE_BACKEND_URL: el('unmuteBackendUrl').value, VOICE_MODEL: el('voiceModel').value, GLOBAL_HOTKEY: el('globalHotkey').value }); window.close(); }
     catch (err) { error(err); }
     finally { el('save').disabled = false; }
 };

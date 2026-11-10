@@ -238,7 +238,7 @@ Streaming voice trial: the speech transport is Unmute with Qwen. The current loc
             this.messageQueue = Promise.resolve();
             const handler = new window.WebSocketHandler(config, {
                 onConnect: () => { this.curiosity?.reset();this.state.isConnected = true; if(window.RecognitionSession&&window.nodie?.analyseSpeakers){this.recognition ||= new window.RecognitionSession(this);this.recognition.start();} this.updateWSStatus('Connected'); this.checkIfFullyLoaded(); if(this.visionContext)this.visionContext.memoryBlocked=false; this.visionContext?.update(); },
-                onClose: () => { this.transcript?.finish(); this.state.isConnected = false; this.stopMicrophone(); this.stopPlayback(); this.updateWSStatus('Reconnecting...'); },
+                onClose: () => { this.announcementUserSpeaking = false; this.transcript?.finish(); this.state.isConnected = false; this.stopMicrophone(); this.stopPlayback(); this.updateWSStatus('Reconnecting...'); },
                 onError: error => this.showNotification(error.message, 'error'),
                 onMessage: data => {
                     this.messageQueue = this.messageQueue.then(() => {
@@ -254,6 +254,8 @@ Streaming voice trial: the speech transport is Unmute with Qwen. The current loc
 
     async handleRealtimeMessage(data) {
                 await this.playbackStopping;
+                if (data.type === 'input_audio_buffer.speech_started') this.announcementUserSpeaking = true;
+                if (data.type === 'response.done' || data.type === 'error') this.announcementUserSpeaking = false;
                 if(['input_audio_buffer.speech_started','conversation.item.input_audio_transcription.delta','response.created','response.audio.delta'].includes(data.type)){this.lastUserSpeech=Date.now();if(!this.lastJournalCancel||Date.now()-this.lastJournalCancel>=1000){this.lastJournalCancel=Date.now();window.nodie?.cancelJournal?.().catch(()=>{});}}
                 if(window.SpokenControls)this.spokenControls ||= new window.SpokenControls(this);
                 const handledControl=await this.spokenControls?.event(data).catch(()=>{this.showNotification('Voice control could not be applied.','error');return false;});
@@ -384,9 +386,10 @@ Streaming voice trial: the speech transport is Unmute with Qwen. The current loc
     },
 
     async startMicrophone() {
+        if (this.announcements?.active) return;
         if (this.state.isMuted || !this.state.isConnected || this.state.audioCapture) return;
         const capture = new AudioCapture(audioData => {
-            if (this.state.audioCapture === capture && !this.state.isMuted && this.state.isConnected && audioData.length >= 8) {
+            if (!this.announcements?.active && this.state.audioCapture === capture && !this.state.isMuted && this.state.isConnected && audioData.length >= 8) {
                 this.state.wsHandler?.send({ type: 'input_audio_buffer.append', audio: audioData });
             }
         });
@@ -423,6 +426,7 @@ Streaming voice trial: the speech transport is Unmute with Qwen. The current loc
         return this.playbackStopping;
     },
     toggleMute() {
+        if (this.announcements?.active) return;
         if (this.localVoice) { this.localVoice.toggle(); return; }
         this.state.isMuted = !this.state.isMuted;
         this.setStatus('idle');
@@ -430,6 +434,7 @@ Streaming voice trial: the speech transport is Unmute with Qwen. The current loc
         else this.startMicrophone();
     },
     cleanup() {
+        this.announcements?.dispose();
         this.visionContext?.dispose();
         this.controls?.cameraSource?.stop();
         this.localVoice?.cancel();
@@ -575,6 +580,10 @@ Streaming voice trial: the speech transport is Unmute with Qwen. The current loc
             });
         }
         window.addEventListener('beforeunload', () => this.cleanup());
+        if (isElectron && window.nodie.takeAnnouncement) {
+            this.announcements = new window.AnnouncementPlayer(this);
+            this.announcements.start();
+        }
         // Initialize connections
         if (this.localVoice) this.localVoice.initialize().catch(error => this.showNotification(error.message, 'error'));
         else this.connectToUnmute();

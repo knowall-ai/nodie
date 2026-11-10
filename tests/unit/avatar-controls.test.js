@@ -14,12 +14,12 @@ function setup() {
 }
 test('speaker preference affects current local and realtime playback and stays independent of microphone', () => {
     const { elements, saved, Controls } = setup(); let gainMuted, toggles = 0;
-    const renderer = { state: { isLoading: false, isMuted: true, audioPlayback: { setMuted: value => gainMuted = value } }, localVoice: { state: 'idle', player: { muted: true } }, toggleMute: () => toggles++ };
+    const renderer = { state: { isLoading: false, isMuted: true, audioPlayback: { setMuted: value => gainMuted = value } }, announcements: { player: { muted: true } }, localVoice: { state: 'idle', player: { muted: true } }, toggleMute: () => toggles++ };
     new Controls(renderer);
     assert.equal(renderer.state.speakerMuted, true);
     elements['control-speaker'].handlers.click();
-    assert.equal(renderer.localVoice.player.muted, false); assert.equal(gainMuted, false); assert.equal(saved.get(Controls.speakerStorageKey), 'false'); assert.equal(toggles, 0);
-    elements['control-speaker'].handlers.click(); assert.equal(renderer.localVoice.player.muted, true); assert.equal(gainMuted, true);
+    assert.equal(renderer.announcements.player.muted, false); assert.equal(renderer.localVoice.player.muted, false); assert.equal(gainMuted, false); assert.equal(saved.get(Controls.speakerStorageKey), 'false'); assert.equal(toggles, 0);
+    elements['control-speaker'].handlers.click(); assert.equal(renderer.announcements.player.muted, true); assert.equal(renderer.localVoice.player.muted, true); assert.equal(gainMuted, true);
 });
 test('microphone toggles continuous listening and camera explains its unavailable state', () => {
     const { elements, Controls } = setup(); const calls = [];

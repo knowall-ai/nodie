@@ -131,3 +131,28 @@ The diarizer can emit intervals inside its padded inference window beyond the su
 === Conversation grounding after interruptions
 
 The shared system prompt distinguishes user speech from assistant replies. Recovery questions refer to the assistant's recorded words; incomplete user fragments must not become an invented assistant continuation. Visual observations do not establish ownership, contents or history without separate evidence. Recent corrections take precedence over assumptions, and an unanswered follow-up should not be repeated just to fill a pause. The shared prompt consolidates overlapping policy into a shorter set of instructions. These are model instructions, not canned responses or a guarantee of transcription accuracy. Local synthetic checks showed cleaner visual grounding, but unsolicited follow-ups remain inconsistent and the model can still invent why it gave an interrupted acknowledgement. This remains unresolved; prompt length alone is not a proven cause. Synthetic conversation checks should exercise interrupted replies, incomplete speech, repeated questions and unsupported visual inferences against the deployed model.
+
+
+=== Local announcement command
+
+The Electron single-instance lock forwards cleaned `--say` text in additionalData;
+argv is retained as a fallback. A cold command exits 1 instead of invoking normal
+startup, which enables listening. Forwarded announcements return before window-mode,
+focus or keep-awake handling. No HTTP command listener or additional dependency is added.
+
+The main process owns the persisted default-on settings gate, five-second admission
+limit and single-slot ten-second queue. A desktop-only output player polls availability,
+claims only between conversation utterances, and rechecks busy/expiry/settings after
+synthesis. Playback starts are also spaced by at least five seconds so deferral cannot
+bunch announcements. Realtime buffered PCM duration and decoder settling are included
+in the busy gate, beyond the model's response.done event. Local recording/processing/
+playback are all busy. An announcement cannot start or resume capture; existing
+realtime microphone pages are withheld during its synthesis/playback. The player
+honours speaker mute, bounds playback, and releases media on completion or shutdown.
+
+TTS is independent of conversation: local mode posts the exact cleaned text to the
+existing HTTP TTS service; Unmute mode uses moshi's Ready/Text/Eos MessagePack protocol,
+selected voice and 24 kHz PCM converted to WAV. The announcement never enters STT,
+LLM, memory, transcript or lip-sync paths. The small protocol codec accepts only the
+bounded string/map/array/numeric subset needed for speech packets. Failed synthesis
+produces a text-free diagnostic and a small availability notice.
