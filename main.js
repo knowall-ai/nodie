@@ -28,7 +28,8 @@ function start() {
     const voice = new LocalVoice({ logger, historyStore, journal, speakerRecognition, avatarEnabled: () => config().AVATAR_ENABLED, diagnostics: () => diagnostics.status() });
     let windowMode;
     const launchFlags = require('./lib/launch-flags');
-    const tvMode = process.argv.includes('--fullscreen');
+    // 'compact' | 'fullscreen' (Nod.ie owns full screen) | 'tv' (a TV launcher manages the window).
+    const launchMode = launchFlags.windowMode(process.argv);
     const keepAwake = launchFlags.displayKeepAwake(powerSaveBlocker, app);
     let mainWindow, pointerTracker, settingsWindow, tray, monitor, dragTimer, dragDeadline, dragMoved = false, updateDrag;
     const stopDrag = () => { updateDrag?.(); clearInterval(dragTimer); clearTimeout(dragDeadline); dragTimer = null; updateDrag = null; return dragMoved; };
@@ -49,7 +50,9 @@ function start() {
     }
     function showSettings() {
         if (settingsWindow && !settingsWindow.isDestroyed()) return settingsWindow.focus();
-        settingsWindow = secureWindow({ width: 780, height: 850, parent: mainWindow, title: 'Nod.ie Settings' }, 'settings.html');
+        const tv = launchMode !== 'compact';
+        settingsWindow = secureWindow({ width: 780, height: 850, parent: mainWindow, title: 'Nod.ie Settings', show: false, ...(tv ? { fullscreen: true, frame: false, autoHideMenuBar: true, skipTaskbar: true } : {}) }, 'settings.html');
+        settingsWindow.once('ready-to-show', () => { settingsWindow?.show(); settingsWindow?.focus(); });
         settingsWindow.on('closed', () => { settingsWindow = null; });
     }
     function shortcuts() {
@@ -66,6 +69,8 @@ function start() {
     handle('window-action', value => windowMode.action(value));
     handle('get-config', config);
     handle('open-settings', () => { showSettings(); return { status: 'opened' }; });
+    // Both full-screen modes get remote navigation; expose only the layout to Settings.
+    handle('settings-presentation', () => ({ layout: launchMode === 'compact' ? 'desktop' : 'tv' }), true);
     handle('diagnostics-status', () => diagnostics.status());
     const streamLips = new (require('./lib/streaming-lip-sync').StreamingLipSync)({ url: env.getConfig('LOCAL_LIP_SYNC_URL'), enabled: () => config().AVATAR_ENABLED });
     handle('lip-segment', (audio, trim) => streamLips.render(audio, undefined, trim));
@@ -185,7 +190,7 @@ function start() {
         try { pointerTracker?.setRegions(value); } catch { logger.write('warn', 'overlay.invalid-hit-regions'); }
     });
     ipcMain.on('begin-drag', event => {
-        if (!trusted(event) || event.sender !== mainWindow.webContents || dragTimer || windowMode?.isFullscreen()) return;
+        if (!trusted(event) || event.sender !== mainWindow.webContents || dragTimer || windowMode?.isFullscreen() || launchMode === 'tv') return;
         const { screen } = require('electron');
         const origin = screen.getCursorScreenPoint();
         const start = mainWindow.getPosition();
@@ -221,24 +226,39 @@ function start() {
         return monitor.apply(id);
     }, true);
     function createMainWindow() {
-        mainWindow = secureWindow({ width: 300, height: 300, title: 'Nod.ie', frame: false, transparent: true, alwaysOnTop: true, resizable: false, skipTaskbar: true, ...(process.platform === 'linux' && !tvMode ? { type: 'dock' } : {}) }, 'index.html');
+        mainWindow = secureWindow({ width: 300, height: 300, title: 'Nod.ie', frame: false, transparent: true, alwaysOnTop: true, resizable: false, skipTaskbar: true, ...(process.platform === 'linux' && launchMode === 'compact' ? { type: 'dock' } : {}) }, 'index.html');
         // A Linux dock overlay avoids KWin's normal-window panel avoidance and resize drift.
         mainWindow.setAlwaysOnTop(true, 'screen-saver');
         const input = require('./lib/window-hit-test');
         pointerTracker = process.platform === 'linux' && process.env.DISPLAY ? input.nativeInputRegion(mainWindow, logger) : input.trackPointer(mainWindow, require('electron').screen, () => Boolean(dragTimer));
         const win = mainWindow;
-        windowMode=require('./lib/window-controls').windowControls(win,pointerTracker,globalShortcut,{tvMode});
+        windowMode=require('./lib/window-controls').windowControls(win,pointerTracker,globalShortcut,{mode:launchMode,screen:require('electron').screen});
         const position = store.get('position');
         const { screen } = require('electron');
         const area = screen.getPrimaryDisplay().workArea;
         if (position && Number.isFinite(position.x) && Number.isFinite(position.y) && screen.getAllDisplays().some(d => { const p = dragPosition({ x: 0, y: 0 }, { x: 0, y: 0 }, [position.x, position.y], [300, 300], d.bounds); return p[0] === position.x && p[1] === position.y; })) mainWindow.setPosition(position.x, position.y);
         else mainWindow.setPosition(area.x + area.width - 350, area.y + area.height - 350);
-        if (tvMode) windowMode.action('fullscreen');
-        win.on('moved', () => { if(windowMode.isFullscreen())return; const [x, y] = win.getPosition(); store.set('position', { x, y }); });
+        if (launchMode !== 'compact') windowMode.action('fullscreen');
+        // In TV mode the launcher owns the geometry (including screen-in-screen); never save it.
+        win.on('moved', () => { if(windowMode.isFullscreen() || launchMode === 'tv')return; const [x, y] = win.getPosition(); store.set('position', { x, y }); });
         win.on('close', event => { if (!app.isQuitting) { event.preventDefault(); win.hide(); } });
         const menu = Menu.buildFromTemplate([{ label: 'Show Nod.ie', click: () => mainWindow.show() }, { label: 'Settings and security updates', click: showSettings }, { label: 'Reload', click: () => mainWindow.reload() }, { label: 'Developer tools', click: () => mainWindow.webContents.openDevTools({ mode: 'detach' }) }, { type: 'separator' }, { label: 'Quit', click: () => app.quit() }]);
         win.webContents.on('context-menu', () => menu.popup());
         return menu;
+    }
+    // --tv only: paint Sofa Launcher's chosen background and accent (read-only; Sofa owns the file).
+    let sofaAppearance = { theme: null, background: null }, sofaWatcher;
+    function followSofaAppearance() {
+        const sofa = require('./lib/sofa-appearance');
+        const send = () => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('sofa-appearance', sofaAppearance); };
+        mainWindow.webContents.on('did-finish-load', send);
+        sofaWatcher = sofa.watchSofaAppearance(sofa.sofaConfigPath(), next => {
+            sofaAppearance = next;
+            logger.write('info', 'desktop.sofa-appearance', { status: next.background ?? 'none', stage: next.theme ?? 'none' });
+            console.info(`Sofa appearance: background ${next.background ?? 'none'}, theme ${next.theme ?? 'none'}`);
+            send();
+        });
+        app.on('before-quit', () => sofaWatcher?.close());
     }
     app.whenReady().then(() => {
         if (process.argv.includes('--keep-awake')) keepAwake();
@@ -247,6 +267,7 @@ function start() {
         });
         session.defaultSession.setPermissionCheckHandler((contents, permission, _origin, details) => contents === mainWindow?.webContents && permission === 'media' && contents.getURL() === pathToFileURL(path.join(__dirname, 'index.html')).href);
         const menu = createMainWindow();
+        if (launchMode === 'tv') followSofaAppearance();
         const trayIcon = path.join(__dirname, 'assets/icons/tray.png');
         if (fs.existsSync(trayIcon)) { tray = new Tray(trayIcon); tray.setToolTip('Nod.ie'); tray.setContextMenu(menu); tray.on('click', () => mainWindow.show()); }
         shortcuts();
@@ -269,13 +290,16 @@ function start() {
         })().catch(() => {});
     });
     app.on('will-quit', () => globalShortcut.unregisterAll());
+    // Sofa closes its managed apps with SIGTERM; use the normal device cleanup.
+    process.once('SIGTERM', () => app.quit());
+    process.once('SIGINT', () => app.quit());
     app.on('second-instance', (_event, commandLine) => {
         void app.whenReady().then(() => launchFlags.applySecondLaunch(commandLine, {
-            window: mainWindow, tvMode, keepAwake,
+            window: mainWindow, mode: launchMode, keepAwake,
             notify: message => {
                 console.info(message);
-                logger.write('info', 'desktop.tv-mode-restart-required');
-                if (Notification.isSupported()) new Notification({ title: 'Nod.ie: TV mode', body: message }).show();
+                logger.write('info', 'desktop.window-mode-restart-required');
+                if (Notification.isSupported()) new Notification({ title: 'Nod.ie: window mode', body: message }).show();
             }
         }));
     });

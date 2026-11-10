@@ -5,10 +5,11 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' ws: wss: http: https:; worker-src 'self' blob:; object-src 'none'; base-uri 'none'">
     <title>Nodie</title>
     <link rel="stylesheet" href="renderer.css">
+    <link rel="stylesheet" href="sofa-backdrops.css">
 </head>
 <body>
-    <button id="control-debug" type="button" aria-pressed="false">Debug</button>
-    <aside id="debug-stream" aria-label="Live debug stream" hidden><button id="debug-clear" type="button">Clear stream</button><ol id="debug-lines"></ol></aside>
+    <button id="control-debug" type="button" aria-pressed="false">Debug off</button>
+    <aside id="debug-stream" aria-label="Live debug stream" tabindex="-1" data-remote-scroll hidden><button id="debug-clear" type="button">Clear stream</button><ol id="debug-lines"></ol></aside>
     <div id="app">
         <div id="avatar-controls" role="group" aria-label="Nodie device controls">
             <button id="control-mic" class="orbit-control" type="button" aria-label="Microphone" aria-pressed="false" disabled title="Microphone off"><img src="assets/icons/lucide/mic-off.svg" alt="" aria-hidden="true"></button>
@@ -70,6 +71,9 @@
     <script src="modules/recognition-session.js"></script>
     <script src="renderer.js"></script>
     <script src="modules/window-controls.js"></script>
+    <script src="modules/sofa-backdrop.js"></script>
+    <script src="modules/spatial-nav.js"></script>
+    <script src="modules/remote-controls.js"></script>
     <script src="modules/debug-stream.js"></script>
     <script src="modules/overlay-hit-regions.js"></script>
 </body>

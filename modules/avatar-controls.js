@@ -13,7 +13,7 @@ class AvatarControls {
         }
         try { renderer.state.speakerMuted = localStorage.getItem(AvatarControls.speakerStorageKey) === 'true'; } catch { renderer.state.speakerMuted = false; }
         this.mic?.addEventListener('click', () => {
-            if (renderer.state.isLoading) return;
+            if (renderer.state.isLoading && !this.microphoneOn()) return;
             const voice = renderer.localVoice;
             if (voice) voice.toggleListening();
             else renderer.toggleMute();
@@ -64,6 +64,7 @@ class AvatarControls {
         this.camera.setAttribute('aria-label', active ? 'Turn camera preview off' : starting ? 'Cancel opening camera' : 'Turn camera preview on');
         this.camera.title = active ? (this.renderer.localVoice ? 'Camera preview on — scene analysis requires Unmute voice mode' : (this.renderer.visionContext?.status === 'snapshot' ? 'Camera on — a recent snapshot is available' : 'Camera on — awaiting a camera image')) : starting ? 'Opening camera — click to cancel' : 'Camera off';
         this.preview.hidden = !active;
+        this.camera.querySelector('img').src = this.icon(active ? 'camera' : 'camera-off');
         this.camera.querySelector('img').hidden = active;
     }
     setSpeakerMuted(muted) {
@@ -89,22 +90,28 @@ class AvatarControls {
         this.updateCamera();
         const state = this.renderer.state;
         const local = this.renderer.localVoice;
-        const micOn = local ? Boolean(local.listeningEnabled) : Boolean(state.audioCapture && !state.isMuted);
+        const micOn = this.microphoneOn();
         if (this.mic) {
-            this.mic.disabled = state.isLoading;
+            this.mic.disabled = state.isLoading && !micOn;
             this.mic.setAttribute('aria-pressed', String(micOn));
             this.mic.dataset.on = String(micOn);
             this.mic.setAttribute('aria-busy', String(local?.state === 'starting'));
+            this.mic.setAttribute('aria-label', local?.state === 'starting' ? 'Opening microphone' : micOn ? 'Turn microphone off' : 'Turn microphone on');
             this.mic.title = local?.state === 'starting' ? 'Opening microphone' : micOn ? (local && local.state !== 'recording' ? 'Listening enabled; microphone paused during reply' : 'Listening enabled') : 'Microphone off';
             this.mic.querySelector('img').src = this.icon(micOn ? 'mic' : 'mic-off');
         }
         if (this.speaker) {
             const on = !state.speakerMuted;
             this.speaker.setAttribute('aria-pressed', String(on));
+            this.speaker.setAttribute('aria-label', on ? 'Mute Nodie voice' : 'Unmute Nodie voice');
             this.speaker.dataset.on = String(on);
             this.speaker.title = on ? 'Speaker on' : 'Speaker off';
             this.speaker.querySelector('img').src = this.icon(on ? 'volume-2' : 'volume-x');
         }
+    }
+    microphoneOn() {
+        const { localVoice, state } = this.renderer;
+        return localVoice ? Boolean(localVoice.listeningEnabled) : Boolean(state.audioCapture && !state.isMuted);
     }
     icon(name) { return `${window.location.pathname.includes('/tests/') ? '../' : './'}assets/icons/lucide/${name}.svg`; }
 }

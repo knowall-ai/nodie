@@ -277,19 +277,40 @@ body[data-platform="web"] #debug-info {
 .avatar-active.avatar-speaking #avatar-video { display: block !important; }
 body[data-platform="electron"] #circle { touch-action: none; user-select: none; }
 
+/* Remote focus colours; sofa-backdrops.css swaps them for Sofa's accent in --tv. */
+:root { --focus-halo: #9c4c00; --focus-glow: #ff8c00cc; --focus-label: #fff; }
 /* Sibling controls stay separate from the avatar's click-and-drag surface. */
 #avatar-controls { position: absolute; inset: 0; pointer-events: none; z-index: 110; }
 .orbit-control {
     position: absolute; width: 40px; height: 40px; padding: 9px;
     display: flex; align-items: center; justify-content: center;
-    border: 2px solid #f5a623; border-radius: 50%; background: #f5a623;
+    border: 2px solid #f7931a; border-radius: 50%; background: #f7931a;
     box-shadow: 0 2px 7px #0008; cursor: pointer; pointer-events: auto;
     -webkit-app-region: no-drag; touch-action: manipulation;
 }
 .orbit-control img { width: 20px; height: 20px; pointer-events: none; }
-.orbit-control[data-on="false"] { background: #e1c39b; }
-.orbit-control:hover { background: #ffd45c; }
-.orbit-control:focus-visible { outline: 2px solid #fff1b8; outline-offset: 2px; }
+.orbit-control[data-on="false"] { background: #f7931a; }
+.orbit-control:hover { background: #ff9f2e; }
+.orbit-control:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.orbit-control:focus, #control-camera:focus {
+    outline: 5px solid #fff; outline-offset: 5px;
+    background: #ff8c00; transform: scale(1.15); z-index: 2;
+    box-shadow: 0 0 0 11px var(--focus-halo), 0 0 32px 12px var(--focus-glow);
+}
+.orbit-control:focus .camera-preview { display: none; }
+.orbit-control:focus img { display: block !important; }
+/* Compact windows cannot paint an outer focus halo beyond their X11 bounds. */
+body:not(.fullscreen) .orbit-control:focus {
+    transform: none; outline: 3px solid #fff; outline-offset: -4px;
+    box-shadow: inset 0 0 0 5px var(--focus-halo);
+}
+body.fullscreen .orbit-control:focus::after {
+    content: attr(aria-label); position: absolute; bottom: calc(100% + 22px);
+    left: 50%; transform: translateX(-50%); white-space: nowrap;
+    background: #17120a; color: #fff; padding: 8px 16px;
+    border: 2px solid var(--focus-label); border-radius: 8px;
+    font: 700 20px/1.2 sans-serif; pointer-events: none;
+}
 .orbit-control[aria-disabled="true"] { background: #95816c; border-color: #c5a37a; cursor: not-allowed; }
 .orbit-control:disabled { opacity: .65; cursor: wait; }
 #control-mic { left: 17px; top: 183px; }
@@ -323,9 +344,10 @@ body[data-platform="electron"] #circle { touch-action: none; user-select: none; 
 
 /* The live preview fills the camera control, inside its amber border. */
 #control-camera { overflow: hidden; isolation: isolate; }
+body.fullscreen #control-camera:focus { overflow: visible; }
 #control-camera .camera-preview { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; pointer-events: none; }
 #control-camera .camera-preview[hidden], #control-camera img[hidden] { display: none; }
-#control-camera[data-on="true"] { background: #291507; border-color: #f5a623; }
+#control-camera[data-on="true"] { background: #291507; border-color: #f7931a; }
 
 /* Button centres lie on the 125px avatar radius, at -40 and -57 degrees. */
 #control-fullscreen, #control-tray { width:28px; height:28px; padding:5px; border-width:1.5px; box-sizing:border-box; }
@@ -340,6 +362,12 @@ body.fullscreen #avatar-controls .orbit-control { position:relative; left:auto; 
 body[data-platform="electron"].fullscreen { display:flex; align-items:center; justify-content:center; height:100vh; }
 
 body.fullscreen #avatar-controls #control-fullscreen, body.fullscreen #avatar-controls #control-tray { width:32px; height:32px; }
+@media (max-height: 320px) {
+    body.fullscreen #avatar-controls { bottom:10px; gap:8px; }
+    body.fullscreen #avatar-controls .orbit-control { width:34px; height:34px; padding:6px; }
+    body.fullscreen .orbit-control:focus::after { font-size:13px; padding:5px 8px; bottom:calc(100% + 12px); }
+    body.fullscreen #control-debug { display:none; }
+}
 /* Fullscreen diagnostics use existing signals, with no extra inference. */
 #control-debug,#debug-stream { display:none; }
 body.fullscreen #control-debug { display:block;position:fixed;right:24px;top:20px;z-index:120;padding:7px 12px;border:1px solid #8994a2;border-radius:8px;background:#202a35;color:#fff;cursor:pointer; }
@@ -371,3 +399,12 @@ body.fullscreen #debug-stream:not([hidden]) { left:24px;top:24px;bottom:88px; }
 #debug-stream:hover::-webkit-scrollbar-thumb { background:#f5a623; }
 #debug-stream::-webkit-scrollbar-corner { background:transparent; }
 @media (forced-colors:active) { #debug-stream { scrollbar-color:auto; } }
+
+/* Remote focus for the Debug toggle and the debug log, readable across a room. The state is
+   in the label ("Debug on"/"Debug off") and aria-pressed, not colour alone. */
+body.fullscreen #control-debug[aria-pressed="true"] { background:#f5c77e; color:#17120a; border:2px solid #fff; font-weight:700; }
+body.fullscreen #control-debug:focus, body.fullscreen #debug-clear:focus {
+    outline:5px solid #fff; outline-offset:5px; font-size:18px; padding:8px 18px; font-weight:700;
+    box-shadow:0 0 0 11px var(--focus-halo), 0 0 32px 12px var(--focus-glow);
+}
+body.fullscreen #debug-stream:focus { outline:4px solid #fff; outline-offset:-4px; box-shadow:inset 0 0 0 10px var(--focus-halo); font-size:15px; }

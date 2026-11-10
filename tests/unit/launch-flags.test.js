@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
-const { displayKeepAwake, applySecondLaunch } = require('../../lib/launch-flags');
+const { windowMode, displayKeepAwake, applySecondLaunch } = require('../../lib/launch-flags');
 
 function fakeBlocker() {
     const started = new Set(); let next = 1; const calls = [];
@@ -31,18 +31,25 @@ function fakeWindow() {
     const calls = [];
     return { calls, isDestroyed: () => false, isMinimized: () => true, restore: () => calls.push('restore'), show: () => calls.push('show'), focus: () => calls.push('focus') };
 }
-test('forwarded fullscreen requests a restart without changing a compact window', () => {
-    const window = fakeWindow(), notices = []; let awake = 0;
-    applySecondLaunch(['nodie', '--fullscreen', '--keep-awake'], { window, tvMode: false, keepAwake: () => awake++, notify: message => notices.push(message) });
-    assert.deepEqual(window.calls, ['restore', 'show', 'focus']);
-    assert.deepEqual(notices, ['Restart Nod.ie with --fullscreen to use TV mode']);
-    assert.equal(awake, 1);
+test('a forwarded mode flag requests a restart without changing the running window', () => {
+    for (const [argv, mode, notice] of [
+        [['nodie', '--fullscreen', '--keep-awake'], 'compact', 'Restart Nod.ie with --fullscreen to use full-screen mode'],
+        [['nodie', '--tv', '--keep-awake'], 'compact', 'Restart Nod.ie with --tv to use TV mode'],
+        [['nodie', '--tv', '--keep-awake'], 'fullscreen', 'Restart Nod.ie with --tv to use TV mode'],
+        [['nodie', '--fullscreen', '--keep-awake'], 'tv', 'Restart Nod.ie with --fullscreen to use full-screen mode']
+    ]) {
+        const window = fakeWindow(), notices = []; let awake = 0;
+        applySecondLaunch(argv, { window, mode, keepAwake: () => awake++, notify: message => notices.push(message) });
+        assert.deepEqual(window.calls, ['restore', 'show', 'focus']);
+        assert.deepEqual(notices, [notice]);
+        assert.equal(awake, 1);
+    }
 });
 
-test('plain launches and fullscreen forwarded to TV mode just show and focus', () => {
-    for (const [argv, tvMode] of [[['nodie'], false], [['nodie'], true], [['nodie', '--fullscreen'], true]]) {
+test('plain launches and a repeat of the running mode just show and focus', () => {
+    for (const [argv, mode] of [[['nodie'], 'compact'], [['nodie'], 'fullscreen'], [['nodie'], 'tv'], [['nodie', '--fullscreen'], 'fullscreen'], [['nodie', '--tv'], 'tv'], [['nodie', '--tv', '--fullscreen'], 'tv']]) {
         const window = fakeWindow(); let awake = 0;
-        applySecondLaunch(argv, { window, tvMode, keepAwake: () => awake++, notify: () => assert.fail('Unexpected notice') });
+        applySecondLaunch(argv, { window, mode, keepAwake: () => awake++, notify: () => assert.fail('Unexpected notice') });
         assert.deepEqual(window.calls, ['restore', 'show', 'focus']);
         assert.equal(awake, 0);
     }
@@ -52,4 +59,13 @@ test('keep-awake still applies before the window exists', () => {
     let awake = 0;
     applySecondLaunch(['nodie', '--keep-awake'], { window: null, keepAwake: () => awake++ });
     assert.equal(awake, 1);
+});
+
+test('startup flags select one window mode; --tv (launcher-managed) wins over --fullscreen', () => {
+    assert.equal(windowMode(['electron', '.']), 'compact');
+    assert.equal(windowMode(['electron', '.', '--keep-awake']), 'compact');
+    assert.equal(windowMode(['electron', '.', '--fullscreen']), 'fullscreen');
+    assert.equal(windowMode(['nodie-desktop', '--tv']), 'tv');
+    assert.equal(windowMode(['nodie-desktop', '--fullscreen', '--tv']), 'tv');
+    assert.equal(windowMode(undefined), 'compact');
 });

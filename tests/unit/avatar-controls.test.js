@@ -43,3 +43,13 @@ test('spoken controls are idempotent and reject invalid actions before changing 
     assert.throws(() => controls.applyVoiceControls({ microphoneEnabled: false, speakerEnabled: 'false' }));
     assert.equal(released, 1); assert.equal(renderer.state.speakerMuted, false);
 });
+
+test('an active microphone can always be turned off while a reply is loading', () => {
+    const { elements, Controls } = setup(); let stopped = 0;
+    const renderer = { state: {isLoading:true}, localVoice: {listeningEnabled:true,toggleListening(){this.listeningEnabled=false;stopped++;}}, showNotification(){} };
+    new Controls(renderer);
+    assert.equal(elements['control-mic'].disabled,false);
+    elements['control-mic'].handlers.click();
+    assert.equal(stopped,1);assert.equal(renderer.localVoice.listeningEnabled,false);assert.equal(elements['control-mic'].disabled,true);
+    elements['control-mic'].handlers.click();assert.equal(stopped,1);
+});

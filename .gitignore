@@ -51,6 +51,8 @@ tests/screenshots/
 # But keep documentation images
 !docs/images/*.png
 !docs/images/*.jpg
+# Sofa Launcher backdrops used in --tv mode (copied from sofa-launcher)
+!assets/backgrounds/*.jpg
 
 # Temporary files
 tmp/
