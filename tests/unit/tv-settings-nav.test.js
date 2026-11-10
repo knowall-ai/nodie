@@ -78,3 +78,34 @@ test('Back is always a way out: from every level and kind', () => {
     }
     assert.equal(step(0, -1, 3), 0); assert.equal(step(2, 1, 3), 2); assert.equal(step(1, 1, 3), 2);
 });
+
+test('OK on the nested person-name input clicks person-save once and ignores key repeats', () => {
+    const fs = require('node:fs'), vm = require('node:vm');
+    const source = fs.readFileSync('modules/settings-tv.js', 'utf8');
+    // Exercise the actual DOM key handler with the real router, without Electron.
+    const handler = source.slice(source.indexOf('    function onKey(event)'), source.indexOf('    /** A modal list'));
+    let saved = 0, restored = 0;
+    const current = { id: 'person-name', value: 'Alice', parentElement: { querySelector: () => null } };
+    const button = { disabled: false, click() { saved++; assert.equal(current.value, 'Alice'); } };
+    const document = { activeElement: current, getElementById: id => id === 'person-save' ? button : null };
+    const context = vm.createContext({
+        document, route, level: 'pane', items: [], overlay: null, active: 0,
+        sections: [{ contains: node => node === current }], CONFIG: {},
+        state: () => pane('text', { dirty: true }),
+        keepFocus: node => { assert.equal(node, button); restored++; }
+    });
+    vm.runInContext(handler, context);
+    const press = repeat => {
+        let prevented = false;
+        context.onKey({ key: 'Enter', repeat, preventDefault() { prevented = true; }, stopPropagation() {} });
+        assert.equal(prevented, true);
+    };
+    press(false);
+    assert.equal(saved, 1);
+    assert.equal(restored, 1);
+    press(true);
+    assert.equal(saved, 1, 'holding OK must not save again');
+    button.disabled = true;
+    press(false);
+    assert.equal(saved, 1, 'a save in progress must not be repeated');
+});

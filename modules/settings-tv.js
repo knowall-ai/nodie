@@ -177,7 +177,15 @@
         case 'scroll': current.scrollBy({ top: action.delta * Math.max(60, current.clientHeight * 0.8) }); break;
         case 'activate': current.click(); keepFocus(current); break;
         case 'open-chooser': openChooser(current); break;
-        case 'save-text': { const key = CONFIG[current.id]; if (key) save(current, key); else current.parentElement?.querySelector('button')?.focus(); break; }
+        case 'save-text': {
+            const key = CONFIG[current.id];
+            if (key) save(current, key);
+            else if (current.id === 'person-name') {
+                const button = document.getElementById('person-save');
+                if (button && !button.disabled) { button.click(); keepFocus(button); }
+            } else current.parentElement?.querySelector('button')?.focus();
+            break;
+        }
         case 'revert-text': current.value = current.dataset.tvSaved; toast('Change discarded'); break;
         case 'step': overlay?.step(action.delta); break;
         case 'choose': overlay?.choose(); break;
