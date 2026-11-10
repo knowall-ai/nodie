@@ -69,6 +69,8 @@ function start() {
     handle('window-action', value => windowMode.action(value));
     handle('get-config', config);
     handle('open-settings', () => { showSettings(); return { status: 'opened' }; });
+    // Both full-screen modes get remote navigation; expose only the layout to Settings.
+    handle('settings-presentation', () => ({ layout: launchMode === 'compact' ? 'desktop' : 'tv' }), true);
     handle('diagnostics-status', () => diagnostics.status());
     const streamLips = new (require('./lib/streaming-lip-sync').StreamingLipSync)({ url: env.getConfig('LOCAL_LIP_SYNC_URL'), enabled: () => config().AVATAR_ENABLED });
     handle('lip-segment', (audio, trim) => streamLips.render(audio, undefined, trim));
