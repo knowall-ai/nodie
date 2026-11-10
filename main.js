@@ -230,7 +230,7 @@ function start() {
         const input = require('./lib/window-hit-test');
         pointerTracker = process.platform === 'linux' && process.env.DISPLAY ? input.nativeInputRegion(mainWindow, logger) : input.trackPointer(mainWindow, require('electron').screen, () => Boolean(dragTimer));
         const win = mainWindow;
-        windowMode=require('./lib/window-controls').windowControls(win,pointerTracker,globalShortcut,{mode:launchMode});
+        windowMode=require('./lib/window-controls').windowControls(win,pointerTracker,globalShortcut,{mode:launchMode,screen:require('electron').screen});
         const position = store.get('position');
         const { screen } = require('electron');
         const area = screen.getPrimaryDisplay().workArea;

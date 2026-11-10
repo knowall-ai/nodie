@@ -12,7 +12,8 @@ function desktop(launchMode = 'compact', platform = 'linux') {
     const windows = [], trackers = [], keys = new Map(), saved = [];
     const source = fs.readFileSync(require.resolve('../../main'), 'utf8');
     const factory = source.slice(source.indexOf('    function createMainWindow('), source.indexOf('    app.whenReady().then('));
-    const screen = { getPrimaryDisplay: () => ({ workArea: { x: 0, y: 0, width: 1920, height: 1080 } }) };
+    const display = { x: 0, y: 0, width: 1920, height: 1080 };
+    const screen = { getPrimaryDisplay: () => ({ workArea: { ...display } }), getDisplayMatching: () => ({ bounds: { ...display } }) };
     const settingsWindow = { setParentWindow(win) { this.parent = win; } };
     const context = vm.createContext({
         launchMode, mainWindow: null, pointerTracker: null, windowMode: null, settingsWindow,
@@ -39,7 +40,13 @@ function desktop(launchMode = 'compact', platform = 'linux') {
                 getBounds() { return { ...this.bounds }; }, setBounds(bounds) { this.bounds = { ...bounds }; },
                 setPosition(x, y) { Object.assign(this.bounds, { x, y }); },
                 getPosition() { return [this.bounds.x, this.bounds.y]; },
-                setFullScreen(value) { this.nativeFull = value; }, isFullScreen() { return this.nativeFull; },
+                // Like Electron: a change of its own full-screen state resizes and emits an event.
+                setFullScreen(value) {
+                    if (value === this.nativeFull) return;
+                    this.nativeFull = value;
+                    if (value) { this.bounds = { ...display }; this.emit('resize'); this.emit('enter-full-screen'); } else this.emit('leave-full-screen');
+                },
+                isFullScreen() { return this.nativeFull; },
                 isVisible() { return this.visible; }, isFocused() { return this.focused ?? true; }, isDestroyed() { return this.destroyed; }, isMinimized() { return false; },
                 show() { this.visible = true; this.emit('show'); }, hide() { this.visible = false; this.emit('hide'); }, focus() { this.focused = true; },
                 destroy() { assert.fail('Mode changes must never destroy the window'); }
@@ -100,6 +107,32 @@ test('--tv (launcher-managed) starts full screen in one normal window and respec
     win.nativeFull = true; win.emit('enter-full-screen');
     assert.equal(d.context.windowMode.isFullscreen(), true);
     assert.equal(win.onTop, false);
+    assert.equal(d.windows.length, 1);
+});
+
+test('--tv follows a window-manager exit Electron does not report (X11): only the bounds change', () => {
+    const d = desktop('tv'); d.create();
+    const win = d.context.mainWindow;
+    // Sofa removes _NET_WM_STATE_FULLSCREEN and moves the window; Electron still reports full screen.
+    win.setBounds({ x: 1440, y: 790, width: 448, height: 252 }); win.emit('resize');
+    assert.equal(win.nativeFull, true, 'no event, and Nod.ie does not toggle full screen back');
+    assert.deepEqual(win.getBounds(), { x: 1440, y: 790, width: 448, height: 252 });
+    assert.equal(d.context.windowMode.isFullscreen(), false);
+    assert.deepEqual(win.webContents.sent.at(-1), ['window-mode', { fullscreen: false, tv: true }]);
+    assert.equal(win.onTop, false, 'stacking is left to the launcher');
+    // Sofa restores full screen.
+    win.setBounds({ x: 0, y: 0, width: 1920, height: 1080 }); win.emit('resize');
+    assert.equal(d.context.windowMode.isFullscreen(), true);
+    assert.deepEqual(win.webContents.sent.at(-1), ['window-mode', { fullscreen: true, tv: true }]);
+});
+
+test('--fullscreen re-asserts full screen after a window-manager exit Electron does not report (X11)', () => {
+    const d = desktop('fullscreen'); d.create();
+    const win = d.context.mainWindow;
+    win.setBounds({ x: 490, y: 210, width: 300, height: 300 }); win.emit('resize');
+    assert.equal(win.nativeFull, true);
+    assert.deepEqual(win.getBounds(), { x: 0, y: 0, width: 1920, height: 1080 });
+    assert.equal(d.context.windowMode.isFullscreen(), true);
     assert.equal(d.windows.length, 1);
 });
 
