@@ -10,7 +10,7 @@ const schema = require('../../lib/config-schema');
 test('say argv and additionalData use strict cleaned text, with data taking precedence', () => {
     assert.equal(parseSay(['nodie']), null);
     for (const argv of [['nodie', '--say', "  Someone's at the door  "], ['electron', '.', "--say=Someone's at the door"]]) assert.deepEqual(parseSay(argv), { say: "Someone's at the door" });
-    assert.deepEqual(parseSay(['nodie', '--say', 'fallback'], { say: '  Verbatim\n\x00\x7f\x85 words  ' }), { say: 'Verbatim words' });
+    assert.deepEqual(parseSay(['nodie', '--say', 'fallback'], { say: '  Verbatim\n\x00\x7f\x85 words  ' }), { say: 'Verbatim  words' });
     assert.deepEqual(parseSay(['nodie', '--say', 'fallback'], {}), { say: 'fallback' });
     for (const bad of [null, 3, {}, [], '', ' \x00\n ', 'x'.repeat(201)]) assert.throws(() => validateSay(bad));
     for (const argv of [['--say'], ['--say='], ['--say', '--tv'], ['--say=a', '--say=b']]) assert.throws(() => parseSay(argv));
@@ -22,9 +22,9 @@ test('say argv and additionalData use strict cleaned text, with data taking prec
 test('second command forwards only validated additionalData and exits without startup; cold command exits 1', () => {
     for (const running of [true, false]) {
         const calls = [], errors = [];
-        const app = { requestSingleInstanceLock: data => { calls.push(data); return !running; }, quit: () => calls.push('quit'), exit: code => calls.push(code) };
+        const app = { requestSingleInstanceLock: data => { calls.push(data); return !running; }, quit: () => calls.push('quit'), releaseSingleInstanceLock: () => calls.push('release'), exit: code => calls.push(code) };
         launch(app, ['nodie', '--say', ' hello '], () => assert.fail('Command opened desktop/microphone'), message => errors.push(message));
-        assert.deepEqual(calls, [{ say: 'hello' }, running ? 'quit' : 1]);
+        assert.deepEqual(calls, running ? [{ say: 'hello' }, 'quit'] : [{ say: 'hello' }, 'release', 1]);
         if (!running) assert.match(errors[0], /not running/);
     }
     let code;
@@ -202,4 +202,84 @@ test('actual realtime capture path withholds announcement audio and never opens 
     renderer.announcements.active = true; callback(new Uint8Array(8)); await renderer.startMicrophone();
     assert.equal(sent.length, 0); assert.equal(captures, 1);
     renderer.announcements.active = false; callback(new Uint8Array(8)); assert.equal(sent.length, 1);
+});
+
+
+test('cleaning preserves word boundaries for newlines and tabs', () => {
+    for (const separator of ['\n', '\r\n', '\t']) assert.equal(validateSay(`a${separator}b`), 'a b');
+    assert.equal(validateSay('a\x00b'), 'ab');
+});
+
+test('Kyutai accepts normal close variants only with nonempty PCM', async () => {
+    for (const code of [1000, 1001, 1005, 1006, 1011]) {
+        for (const audio of [false, true]) {
+            let socket;
+            class Socket extends EventEmitter { constructor() { super(); socket = this; } terminate() {} send() {} }
+            const pending = synthesize('hello', 1000, { config: (_key, fallback) => fallback, Socket });
+            socket.emit('message', Buffer.from('81a474797065a55265616479', 'hex'));
+            if (audio) socket.emit('message', Buffer.from('82a474797065a5417564696fa370636d92ca3f000000cabf000000', 'hex'));
+            socket.emit('close', code);
+            if (audio && [1000, 1001, 1005].includes(code)) assert.equal((await pending).length, 48);
+            else await assert.rejects(pending, /TTS unavailable/);
+        }
+    }
+});
+
+function rendererHarness(extra = {}) {
+    const context = { window: { addEventListener() {} }, document: { readyState: 'loading', addEventListener() {}, getElementById() { return null; } }, console: { log() {}, error() {}, debug() {} }, module: { exports: {} }, clearTimeout, ...extra };
+    vm.runInNewContext(fs.readFileSync('renderer.js', 'utf8'), context);
+    return context.module.exports;
+}
+
+test('speech stop without a response and a missing stop both release announcement deferral', async () => {
+    let next = 0; const timers = new Map();
+    const delays = [];
+    const r = rendererHarness({ setTimeout: (fn, delay) => { delays.push(delay); timers.set(++next, fn); return next; }, clearTimeout: id => timers.delete(id) });
+    for (const end of ['input_audio_buffer.speech_stopped', 'response.done', 'error']) {
+        await r.handleRealtimeMessage({ type: 'input_audio_buffer.speech_started' });
+        assert.equal(r.announcementUserSpeaking, true);
+        r.flushPCMAudio = () => {};
+        await r.handleRealtimeMessage({ type: end });
+        assert.equal(r.announcementUserSpeaking, false);
+        // response.done also creates an avatar timer in the renderer.
+        timers.clear();
+    }
+    await r.handleRealtimeMessage({ type: 'input_audio_buffer.speech_started' });
+    const old = next;
+    await r.handleRealtimeMessage({ type: 'input_audio_buffer.speech_started' });
+    assert.equal(timers.has(old), false);
+    assert.equal(timers.size, 1); assert.equal(delays.at(-1), 15000); timers.get(next)();
+    assert.equal(r.announcementUserSpeaking, false);
+});
+
+test('reconnect during announcement starts capture but sends only after playback ends', async () => {
+    let callback, starts = 0; const sent = [];
+    class Capture { constructor(fn) { callback = fn; } async start() { starts++; } getAnalyser() {} }
+    const r = rendererHarness({ window: { AudioCaptureWeb: Capture, addEventListener() {} } });
+    Object.assign(r.state, { isConnected: true, isMuted: false, wsHandler: { send: data => sent.push(data) } });
+    r.announcements = { active: true };
+    await r.startMicrophone(); assert.equal(starts, 1);
+    callback(new Uint8Array(8)); assert.equal(sent.length, 0);
+    r.announcements.active = false;
+    callback(new Uint8Array(8)); assert.equal(sent.length, 1);
+});
+
+test('announcement allows muting capture while deferring unmute', () => {
+    const r = rendererHarness(); let stops = 0, starts = 0;
+    r.setStatus = () => {}; r.startMicrophone = () => starts++;
+    r.state.audioCapture = { stop: () => stops++ }; r.state.isMuted = false;
+    r.announcements = { active: true };
+    r.toggleMute(); assert.equal(r.state.isMuted, true); assert.equal(stops, 1); assert.equal(r.state.audioCapture, null);
+    r.toggleMute(); assert.equal(r.state.isMuted, true); assert.equal(starts, 0);
+    r.announcements.active = false;
+    r.toggleMute(); assert.equal(r.state.isMuted, false); assert.equal(starts, 1);
+});
+
+
+test('announcement can cancel local listening without starting another recording', () => {
+    const r = rendererHarness(); let cancels = 0;
+    r.state.isMuted = false; r.announcements = { active: true };
+    r.localVoice = { cancel() { cancels++; r.state.isMuted = true; }, status() {}, toggle() { assert.fail('Started local recording'); } };
+    r.toggleMute(); assert.equal(cancels, 1); assert.equal(r.state.isMuted, true);
+    r.toggleMute(); assert.equal(cancels, 1);
 });

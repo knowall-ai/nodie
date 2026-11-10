@@ -28,7 +28,7 @@ test('interruption clears buffered output, drops decoded tail, and preserves Opu
     assert.deepEqual(posts.map(x => x.type), ['audio', 'reset', 'reset', 'audio']);
 });
 test('both Unmute interruption events clear speech without stopping microphone capture', async () => {
-    const context = { window: { addEventListener() {} }, document: { readyState: 'loading', addEventListener() {} }, console: { debug() {} }, module: { exports: {} }, clearTimeout };
+    const context = { window: { addEventListener() {} }, document: { readyState: 'loading', addEventListener() {} }, console: { debug() {} }, module: { exports: {} }, setTimeout, clearTimeout };
     vm.runInNewContext(fs.readFileSync('renderer.js', 'utf8'), context);
     const renderer = context.module.exports;
     let interrupted = 0;
