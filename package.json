@@ -22,13 +22,13 @@
   "author": "Ben Weeks",
   "license": "MIT",
   "devDependencies": {
-    "electron": "44.4.1",
+    "electron": "44.10.2",
     "playwright": "^1.63.0",
     "puppeteer": "^25.11.0"
   },
   "dependencies": {
     "@knowall-ai/reverie": "0.5.2",
-    "@modelcontextprotocol/sdk": "1.30.0",
+    "@modelcontextprotocol/sdk": "1.32.2",
     "dotenv": "^17.2.0",
     "electron-store": "^8.1.0",
     "eventsource": "^4.0.0",
@@ -41,6 +41,7 @@
     "node": ">=22"
   },
   "overrides": {
-    "sharp": "0.35.4"
+    "sharp": "0.35.5",
+    "zod": "^4.6.6"
   }
 }
