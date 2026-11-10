@@ -11,6 +11,7 @@ async function setup(presentation = { layout: 'desktop' }, reject = false) {
     const input = { matches: () => false, getBoundingClientRect: () => ({ x: 0, y: 0, width: 10, height: 10 }) };
     const document = {
         activeElement: input,
+        documentElement: { classList: { contains: () => false } },
         addEventListener: (_name, handler) => { keydown = handler; },
         querySelectorAll: () => [],
         createElement: () => ({}), head: { append: style => styles.push(style) }
@@ -40,7 +41,7 @@ test('desktop settings leave Escape, arrows and Enter to native controls and ret
         }
     }
     assert.equal(s.closed(), 0);
-    assert.match(s.styles[0].textContent, /button:focus.*outline:4px/);
+    assert.match(s.styles[0].textContent, /focus.*outline:4px/);
 });
 
 test('TV settings enable remote keys only for an explicit TV layout', async () => {
@@ -68,7 +69,7 @@ test('settings presentation IPC restricts the sender and returns a whitelisted l
     const sender = win => ({ sender: win.webContents, senderFrame: win.webContents.mainFrame });
     for (const launchMode of ['compact', 'fullscreen', 'tv']) {
         const handlers = new Map();
-        const context = vm.createContext({ launchMode, settingsWindow, mainWindow, path, pathToFileURL, __dirname: dirname, ipcMain: { handle: (name, handler) => handlers.set(name, handler) } });
+        const context = vm.createContext({ launchMode, sofaAppearance: { theme: null, background: null }, settingsWindow, mainWindow, path, pathToFileURL, __dirname: dirname, ipcMain: { handle: (name, handler) => handlers.set(name, handler) } });
         vm.runInContext(source.slice(source.indexOf('    const isLocalFrame ='), source.indexOf('    function secureWindow(')), context);
         vm.runInContext(source.split('\n').find(line => line.includes("handle('settings-presentation'")), context);
         const handler = handlers.get('settings-presentation');

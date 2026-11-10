@@ -69,8 +69,8 @@ function start() {
     handle('window-action', value => windowMode.action(value));
     handle('get-config', config);
     handle('open-settings', () => { showSettings(); return { status: 'opened' }; });
-    // Both full-screen modes get remote navigation; expose only the layout to Settings.
-    handle('settings-presentation', () => ({ layout: launchMode === 'compact' ? 'desktop' : 'tv' }), true);
+    // Both full-screen modes get the remote-friendly settings layout; only --tv follows Sofa's look.
+    handle('settings-presentation', () => ({ layout: launchMode === 'compact' ? 'desktop' : 'tv', sofa: launchMode === 'tv' ? sofaAppearance : null }), true);
     handle('diagnostics-status', () => diagnostics.status());
     const streamLips = new (require('./lib/streaming-lip-sync').StreamingLipSync)({ url: env.getConfig('LOCAL_LIP_SYNC_URL'), enabled: () => config().AVATAR_ENABLED });
     handle('lip-segment', (audio, trim) => streamLips.render(audio, undefined, trim));
@@ -250,7 +250,9 @@ function start() {
     let sofaAppearance = { theme: null, background: null }, sofaWatcher;
     function followSofaAppearance() {
         const sofa = require('./lib/sofa-appearance');
-        const send = () => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('sofa-appearance', sofaAppearance); };
+        const send = () => {
+            for (const win of [mainWindow, settingsWindow]) if (win && !win.isDestroyed()) win.webContents.send('sofa-appearance', sofaAppearance);
+        };
         mainWindow.webContents.on('did-finish-load', send);
         sofaWatcher = sofa.watchSofaAppearance(sofa.sofaConfigPath(), next => {
             sofaAppearance = next;
