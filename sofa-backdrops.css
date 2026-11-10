@@ -68,9 +68,10 @@
     background: linear-gradient(rgba(7, 8, 11, 0.3), rgba(7, 8, 11, 0.1)), url('assets/backgrounds/planet.jpg') center bottom / cover no-repeat #07080b;
 }
 
-/* Remote focus ring and glow follow Sofa's theme accent; the buttons stay Nod.ie orange. */
-:root[data-sofa-theme] body.tv-fullscreen .orbit-control:focus,
-:root[data-sofa-theme] body.tv-fullscreen #control-camera:focus {
-    box-shadow: 0 0 0 11px color-mix(in srgb, var(--sofa-accent-strong) 70%, #000), 0 0 32px 12px var(--sofa-accent-glow);
+/* Remote focus ring and glow (renderer.css --focus-*) follow Sofa's theme accent; the buttons
+   stay Nod.ie orange. */
+:root[data-sofa-theme] body.tv-fullscreen {
+    --focus-halo: color-mix(in srgb, var(--sofa-accent-strong) 70%, #000);
+    --focus-glow: var(--sofa-accent-glow);
+    --focus-label: var(--sofa-accent);
 }
-:root[data-sofa-theme] body.tv-fullscreen .orbit-control:focus::after { border-color: var(--sofa-accent); }

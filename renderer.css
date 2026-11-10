@@ -277,6 +277,8 @@ body[data-platform="web"] #debug-info {
 .avatar-active.avatar-speaking #avatar-video { display: block !important; }
 body[data-platform="electron"] #circle { touch-action: none; user-select: none; }
 
+/* Remote focus colours; sofa-backdrops.css swaps them for Sofa's accent in --tv. */
+:root { --focus-halo: #9c4c00; --focus-glow: #ff8c00cc; --focus-label: #fff; }
 /* Sibling controls stay separate from the avatar's click-and-drag surface. */
 #avatar-controls { position: absolute; inset: 0; pointer-events: none; z-index: 110; }
 .orbit-control {
@@ -293,20 +295,20 @@ body[data-platform="electron"] #circle { touch-action: none; user-select: none; 
 .orbit-control:focus, #control-camera:focus {
     outline: 5px solid #fff; outline-offset: 5px;
     background: #ff8c00; transform: scale(1.15); z-index: 2;
-    box-shadow: 0 0 0 11px #9c4c00, 0 0 32px 12px #ff8c00cc;
+    box-shadow: 0 0 0 11px var(--focus-halo), 0 0 32px 12px var(--focus-glow);
 }
 .orbit-control:focus .camera-preview { display: none; }
 .orbit-control:focus img { display: block !important; }
 /* Compact windows cannot paint an outer focus halo beyond their X11 bounds. */
 body:not(.fullscreen) .orbit-control:focus {
     transform: none; outline: 3px solid #fff; outline-offset: -4px;
-    box-shadow: inset 0 0 0 5px #9c4c00;
+    box-shadow: inset 0 0 0 5px var(--focus-halo);
 }
 body.fullscreen .orbit-control:focus::after {
     content: attr(aria-label); position: absolute; bottom: calc(100% + 22px);
     left: 50%; transform: translateX(-50%); white-space: nowrap;
     background: #17120a; color: #fff; padding: 8px 16px;
-    border: 2px solid #fff; border-radius: 8px;
+    border: 2px solid var(--focus-label); border-radius: 8px;
     font: 700 20px/1.2 sans-serif; pointer-events: none;
 }
 .orbit-control[aria-disabled="true"] { background: #95816c; border-color: #c5a37a; cursor: not-allowed; }
@@ -397,3 +399,12 @@ body.fullscreen #debug-stream:not([hidden]) { left:24px;top:24px;bottom:88px; }
 #debug-stream:hover::-webkit-scrollbar-thumb { background:#f5a623; }
 #debug-stream::-webkit-scrollbar-corner { background:transparent; }
 @media (forced-colors:active) { #debug-stream { scrollbar-color:auto; } }
+
+/* Remote focus for the Debug toggle and the debug log, readable across a room. The state is
+   in the label ("Debug on"/"Debug off") and aria-pressed, not colour alone. */
+body.fullscreen #control-debug[aria-pressed="true"] { background:#f5c77e; color:#17120a; border:2px solid #fff; font-weight:700; }
+body.fullscreen #control-debug:focus, body.fullscreen #debug-clear:focus {
+    outline:5px solid #fff; outline-offset:5px; font-size:18px; padding:8px 18px; font-weight:700;
+    box-shadow:0 0 0 11px var(--focus-halo), 0 0 32px 12px var(--focus-glow);
+}
+body.fullscreen #debug-stream:focus { outline:4px solid #fff; outline-offset:-4px; box-shadow:inset 0 0 0 10px var(--focus-halo); font-size:15px; }
