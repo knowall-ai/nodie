@@ -1,8 +1,11 @@
 /** TV settings navigation: real form controls retain their own editing keys. */
 (() => {
+    let tv = false;
+    window.nodie?.settingsPresentation?.().then(presentation => { tv = presentation?.layout === 'tv'; }).catch(() => {});
     let editingChoice = null;
     const visible = element => !element.disabled && !element.closest('[hidden],[inert]') && element.getClientRects().length && getComputedStyle(element).visibility !== 'hidden';
     document.addEventListener('keydown', event => {
+        if (!tv) return;
         // The TV layout (modules/settings-tv.js) routes keys itself.
         if (document.documentElement.classList.contains('tv')) return;
         if (event.ctrlKey || event.altKey || event.metaKey || event.defaultPrevented) return;

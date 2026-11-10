@@ -83,3 +83,25 @@ test('the id list, ported CSS rules and copied pictures are in step', () => {
     for (const id of SOFA_PICTURES) assert.ok(fs.statSync(path.join(__dirname, `../../assets/backgrounds/${id}.jpg`)).size > 10000, id);
     assert.deepEqual(fs.readdirSync(path.join(__dirname, '../../assets/backgrounds')).sort(), SOFA_PICTURES.map(id => `${id}.jpg`).sort());
 });
+
+
+test('oversized malformed header returns defaults without blocking', () => {
+    const text = '[' + ' '.repeat(100000);
+    const start = performance.now();
+    assert.deepEqual(parseSofaUi(text), NONE);
+    assert.ok(performance.now() - start < 200, 'parsing must finish within 200 ms');
+});
+
+test('header whitespace, comments and array tables retain their meaning', () => {
+    assert.deepEqual(parseSofaUi('  [ ui ] # appearance\ntheme = "nodie"'), { theme: 'nodie', background: null });
+    assert.deepEqual(parseSofaUi('[[ ui ]] # not the top-level table\ntheme = "nodie"'), NONE);
+});
+
+test('reading caps text even if the file grows after stat', async () => {
+    const prefix = '# padding\n'.repeat(27000);
+    const fsp = {
+        stat: async () => ({ isFile: () => true, size: 10 }),
+        readFile: async () => prefix + '\n[ui]\ntheme = "nodie"'
+    };
+    assert.deepEqual(await readSofaAppearance('config.toml', { fs: fsp }), NONE);
+});
