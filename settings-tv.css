@@ -1,0 +1,98 @@
+/*
+ * TV settings screen (html.tv, set by modules/settings-tv.js in the full-screen modes only).
+ * 10-foot sizing in Sofa Launcher's units: 1rem = 1% of screen width. The desktop window never
+ * gets html.tv, so settings.css alone styles it.
+ */
+html.tv-pending body { visibility: hidden; }
+html.tv {
+    font-size: 1vw; color-scheme: dark;
+    --tv-accent: #f7931a; --tv-accent-strong: #ff8c00; --tv-ink: #f4ede4; --tv-muted: #c9b9a6;
+    --tv-panel: rgba(16, 13, 10, 0.86); --tv-line: rgba(255, 255, 255, 0.12);
+}
+/* In --tv the accent follows Sofa's theme (sofa-backdrops.css defines --sofa-accent). */
+html.tv[data-sofa-theme] { --tv-accent: var(--sofa-accent); --tv-accent-strong: var(--sofa-accent-strong); }
+html.tv, html.tv body { height: 100%; overflow: hidden; }
+html.tv body {
+    margin: 0; padding: 0; color: var(--tv-ink);
+    font: 1.45rem/1.45 'Inter', 'Noto Sans', system-ui, sans-serif;
+    background: radial-gradient(120% 90% at 20% 0%, #2a2018 0%, #120e0b 55%, #070605 100%);
+}
+html.tv body > .button-row { display: none; }
+#tv-shell { display: grid; grid-template-columns: 26rem 1fr; gap: 2.5rem; height: 100vh; padding: 2.5rem 3rem; box-sizing: border-box; }
+#tv-column { display: flex; flex-direction: column; min-height: 0; }
+html.tv .settings-header { padding: 0 0 1.5rem; margin: 0; background: none; border: 0; border-radius: 0; }
+html.tv .brand-name { font-size: 1.8rem; }
+html.tv .brand-dot { width: .5rem; height: .5rem; }
+html.tv h1 { font-size: 2.6rem; margin: .4rem 0 0; color: #fff; }
+html.tv .settings-header p { display: none; }
+#tv-sections { display: flex; flex-direction: column; gap: .2rem; overflow: auto; padding: .6rem; margin: -.6rem; scrollbar-width: none; }
+html.tv .tv-section-item {
+    margin: 0; min-height: 0; text-align: left; font-weight: 600; font-size: 1.6rem; line-height: 1.2; font-family: inherit; padding: .65rem 1.3rem; border-radius: .8rem;
+    background: transparent; border: .2rem solid transparent; color: var(--tv-muted);
+}
+html.tv .tv-section-item[aria-current] { color: #fff; background: rgba(255, 255, 255, 0.08); }
+#tv-hint { margin-top: auto; padding-top: 1rem; font-size: 1.15rem; color: var(--tv-muted); }
+
+#tv-pane { overflow: auto; min-height: 0; padding: .8rem 1.4rem 4rem; margin: -.8rem -1.4rem; scroll-padding: 2rem; }
+html.tv .section { display: none; background: var(--tv-panel); border: 1px solid var(--tv-line); border-radius: 1.4rem; padding: 2rem 2.4rem; margin: 0; box-shadow: none; }
+html.tv .section.tv-active { display: block; }
+html.tv h2 { font-size: 2.1rem; margin: 0 0 1.2rem; color: #fff; }
+html.tv h3 { font-size: 1.55rem; margin: 0 0 .3rem; color: #fff; font-weight: 650; }
+html.tv p, html.tv .setting-label p { font-size: 1.3rem; color: var(--tv-muted); margin: .3rem 0 1rem; }
+html.tv .setting-row { gap: 2rem; padding: 1.1rem 0; margin: 0; border-bottom: 1px solid var(--tv-line); }
+html.tv .setting-row:last-child { border: 0; }
+html.tv .tv-note { font-size: 1.15rem; color: var(--tv-accent); }
+html.tv label { display: flex; align-items: center; gap: 1.2rem; font-size: 1.45rem; margin: .6rem 0; flex-wrap: wrap; }
+html.tv .avatar-status { font-size: 1.3rem; padding: .4rem 1rem; border-radius: 2rem; }
+
+/* Controls: big targets, current value always visible. */
+html.tv button, html.tv input[type='text'], html.tv input[type='url'], html.tv input:not([type]), html.tv select {
+    font-weight: 600; font-size: 1.4rem; line-height: 1.2; font-family: inherit; min-height: 3.6rem; padding: .7rem 1.4rem; border-radius: .8rem;
+    border: .15rem solid rgba(255, 255, 255, 0.25); background: rgba(255, 255, 255, 0.07); color: var(--tv-ink);
+}
+html.tv input[type='text'], html.tv input[type='url'], html.tv input:not([type]), html.tv select { width: 26rem; max-width: 100%; }
+html.tv select { appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--tv-muted) 50%), linear-gradient(135deg, var(--tv-muted) 50%, transparent 50%); background-position: calc(100% - 1.6rem) 50%, calc(100% - 1.1rem) 50%; background-size: .5rem .5rem; background-repeat: no-repeat; padding-right: 3rem; }
+html.tv button { margin: .4rem .8rem .4rem 0; }
+html.tv .btn-primary, html.tv #apply { background: var(--tv-accent); color: #140b02; border-color: transparent; }
+html.tv input[type='checkbox'] { flex: 0 0 5.4rem; width: 5.4rem; height: 2.9rem; border-radius: 3rem; border: .15rem solid rgba(255, 255, 255, 0.3); background: rgba(255, 255, 255, 0.15); }
+html.tv input[type='checkbox']::before { width: 2.3rem; height: 2.3rem; top: .15rem; left: .2rem; background: #fff; }
+html.tv input[type='checkbox']:checked { background: var(--tv-accent); border-color: var(--tv-accent); }
+html.tv input[type='checkbox']:checked::before { transform: translateX(2.45rem); background: #140b02; }
+.tv-state { display: none; }
+html.tv .tv-state { display: inline-block; min-width: 3.5rem; font-weight: 700; font-size: 1.4rem; }
+html.tv input[type='checkbox']:checked + .tv-state::before { content: 'On'; }
+html.tv input[type='checkbox']:not(:checked) + .tv-state::before { content: 'Off'; color: var(--tv-muted); }
+html.tv .setting-row > .tv-state { order: 3; }
+html.tv .person-link-fields { gap: 1rem 2rem; }
+html.tv .person-link-fields input, html.tv .person-link-fields select { height: auto; width: 100%; }
+
+/* Status text: readable blocks that scroll with Up/Down when focused. */
+html.tv pre, html.tv #journal-events {
+    font: 1.25rem/1.5 'Inter', 'Noto Sans', system-ui, sans-serif; white-space: pre-wrap;
+    max-height: 22rem; overflow: auto; background: rgba(0, 0, 0, 0.35); color: var(--tv-ink);
+    padding: 1.2rem 1.5rem; border-radius: .9rem; border: .15rem solid transparent;
+}
+html.tv #journal-events { padding-left: 3rem; }
+
+/* One strong focus style for every remote target. */
+html.tv :is(button, input, select, .tv-scroll):focus {
+    outline: .3rem solid #fff; outline-offset: .25rem;
+    box-shadow: 0 0 0 .75rem color-mix(in srgb, var(--tv-accent-strong) 70%, #000), 0 0 2rem .6rem color-mix(in srgb, var(--tv-accent) 60%, transparent);
+}
+html.tv .tv-section-item:focus { color: #140b02; background: var(--tv-accent); }
+html.tv :where(button, input, select):disabled { opacity: .45; }
+
+/* Choice lists and confirmations. */
+.tv-overlay { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: rgba(0, 0, 0, 0.7); }
+.tv-overlay-card { min-width: 34rem; max-width: 60rem; max-height: 80vh; overflow: auto; padding: 2.4rem; border-radius: 1.6rem; background: #1b1510; border: .15rem solid var(--tv-line); }
+.tv-overlay-card p { color: var(--tv-ink) !important; font-size: 1.5rem !important; }
+.tv-options { display: flex; flex-direction: column; gap: .6rem; }
+.tv-dialog .tv-options { flex-direction: row; justify-content: flex-end; gap: 1.2rem; margin-top: 1.5rem; }
+html.tv .tv-option { width: 100%; text-align: left; margin: 0; }
+html.tv .tv-dialog .tv-option { width: auto; min-width: 12rem; text-align: center; }
+html.tv .tv-option[aria-selected]::before { content: '› '; }
+
+#tv-toast { position: fixed; right: 3rem; bottom: 2.5rem; z-index: 60; padding: 1rem 1.8rem; border-radius: .9rem; font: 700 1.4rem/1.2 'Inter', system-ui, sans-serif; background: var(--tv-accent); color: #140b02; }
+#tv-toast[data-kind='error'] { background: #b3261e; color: #fff; }
+#tv-toast[hidden] { display: none; }
+html.tv #settings-error:not(:empty) { position: fixed; left: 3rem; bottom: 2.5rem; z-index: 60; max-width: 50rem; padding: 1rem 1.8rem; border-radius: .9rem; background: #b3261e; color: #fff; font-size: 1.4rem; }

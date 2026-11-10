@@ -3,6 +3,8 @@
     let editingChoice = null;
     const visible = element => !element.disabled && !element.closest('[hidden],[inert]') && element.getClientRects().length && getComputedStyle(element).visibility !== 'hidden';
     document.addEventListener('keydown', event => {
+        // The TV layout (modules/settings-tv.js) routes keys itself.
+        if (document.documentElement.classList.contains('tv')) return;
         if (event.ctrlKey || event.altKey || event.metaKey || event.defaultPrevented) return;
         const current = document.activeElement;
         if (editingChoice && editingChoice !== current) editingChoice = null;
@@ -42,6 +44,7 @@
         if (next) { next.focus({preventScroll:true}); next.scrollIntoView({block:'nearest',inline:'nearest'}); }
     });
     const style = document.createElement('style');
-    style.textContent = 'button:focus,input:focus,select:focus,textarea:focus,a:focus{outline:4px solid #f7931a!important;outline-offset:4px}input[type=checkbox]:focus + *{outline:4px solid #f7931a;outline-offset:4px}';
+    // Desktop focus ring; the TV layout (html.tv) has its own in settings-tv.css.
+    style.textContent = 'html:not(.tv) :is(button,input,select,textarea,a):focus{outline:4px solid #f7931a!important;outline-offset:4px}html:not(.tv) input[type=checkbox]:focus + *{outline:4px solid #f7931a;outline-offset:4px}';
     document.head.append(style);
 })();
