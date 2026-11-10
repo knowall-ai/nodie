@@ -24,6 +24,7 @@ contextBridge.exposeInMainWorld('nodie', {
     clearJournal:()=>ipcRenderer.invoke('journal-clear'),
     windowAction: action => ipcRenderer.invoke('window-action',action),
     onWindowMode: callback => subscribe('window-mode',callback),
+    onSofaAppearance: callback => subscribe('sofa-appearance',callback),
     transcriptSession: () => ipcRenderer.invoke('transcript-session'),
     saveTranscript: (epoch, turn) => ipcRenderer.invoke('transcript-save', epoch, turn),
     onHistoryCleared: fn => subscribe('history-cleared', fn),

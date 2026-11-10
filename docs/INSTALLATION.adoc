@@ -61,33 +61,56 @@ Without this backend overlay, older Unmute ignores the new field; speech continu
 
 == Window and directly addressed voice controls
 
-For an always-on TV PC, launch `npm start -- --fullscreen --keep-awake`.
-`--fullscreen` selects TV mode at startup: a normal (non-dock) window stays fullscreen.
-Escape, Restore controls and voice restore requests do not leave TV mode. If the
-window manager leaves fullscreen, Nod.ie re-enters it. Quit and restart without
-`--fullscreen` to return to compact mode. Add the command to desktop login autostart
-to restore the TV display after signing in; it does not enable automatic login.
-`--keep-awake` inhibits display sleep while the desktop process runs, using one
-idempotent blocker that is stopped on quit.
+The window mode is chosen once, at startup. Both full-screen modes use a normal
+(non-dock) window; presentation changes retain the same window and renderer,
+preserving microphone state and conversations.
+
+[cols="1,3",options="header"]
+|===
+|Flag |Behaviour
+|none |Compact floating avatar (unchanged). Linux uses `type: 'dock'` to avoid KWin panel avoidance and resize drift. Full screen is a toggle; Escape restores the previous position and size.
+|`--fullscreen` |Standalone full screen that Nod.ie owns, for a TV PC without a launcher: `npm start -- --fullscreen --keep-awake`. Escape, Restore controls and voice restore requests are ignored. If the window manager leaves full screen, Nod.ie re-enters it (on X11 Electron does not report this exit, so it is detected from the window bounds).
+|`--tv` |Managed by a TV launcher such as Sofa Launcher (which runs `nodie-desktop --tv`). Nod.ie starts full screen but never fights the launcher: when the launcher un-fullscreens and moves it (Sofa's screen-in-screen corner), Nod.ie keeps that geometry, keeps the full-window layout and never saves it as the floating position. Restore and tray requests are refused ("Use the TV launcher"), the floating/tray buttons are hidden, Escape is left to the page, and full-screen Nod.ie is not always-on-top so launcher menus can appear above it. Arrow keys and OK navigate the device controls; Ctrl+Shift+C/M/S toggle camera, microphone and speaker. Settings opens full screen with directional navigation. SIGTERM uses the normal quit cleanup. While full screen, Nod.ie paints the launcher's background (see below).
+|===
+
+If both mode flags are given, `--tv` wins. Quit and restart to change mode. Add the
+command to desktop login autostart to restore the TV display after signing in; it does
+not enable automatic login. `--keep-awake` works with any mode: it inhibits display
+sleep while the desktop process runs, using one idempotent blocker that is stopped on quit.
 
 Nod.ie runs as a single instance. A second launch always shows and focuses the
-running window and applies `--keep-awake` if supplied. Forwarding `--fullscreen`
-to a compact instance does not change modes: it logs and, where desktop notifications
-are supported, displays "Restart Nod.ie with --fullscreen to use TV mode".
-For an instance already in TV mode, it simply focuses the window. Later launches
-without flags do not disable TV mode or keep-awake.
+running window and applies `--keep-awake` if supplied. Forwarding a different mode
+flag does not change modes: it logs and, where desktop notifications are supported,
+displays for example "Restart Nod.ie with --tv to use TV mode" or "Restart Nod.ie with
+--fullscreen to use full-screen mode". Repeating the running mode's flag, or launching
+without flags, simply focuses the window and never disables the mode or keep-awake.
 
-Without `--fullscreen`, the existing compact behaviour is unchanged; Linux uses
-`type: 'dock'` to avoid KWin panel avoidance and resize drift. Presentation changes
-retain the same window and renderer, preserving microphone state and conversations.
+=== Sofa Launcher backdrop (`--tv` only)
 
-The desktop has small Full screen / Restore and Minimize to system tray controls centred on the upper-right arc of the avatar boundary. The fullscreen camera preview remains clipped and positioned inside its own control. Full screen presents the enlarged avatar with a dark background and bottom controls; outside TV mode, Escape restores the previous compact position and size. Hiding does not end the conversation. Tray click or the existing show shortcut reopens it.
+In `--tv` mode the main process reads `[ui] background` and `[ui] theme` from
+`$XDG_CONFIG_HOME/sofa-launcher/config.toml` (default `~/.config/sofa-launcher/config.toml`)
+with a small read-only parser, and watches its directory (plus a slow re-stat poll) so a
+change in Sofa's Menu → Background applies within a moment. Nod.ie never writes the file.
+While the TV window is full screen it paints the same background as Sofa, and the remote
+focus ring and glow use Sofa's theme accent (KnowAll green or Nod.ie orange); the buttons
+stay Nod.ie orange. A missing file, missing keys or an unknown id fall back to Nod.ie's own
+look, as does the screen-in-screen corner. The compact avatar and standalone `--fullscreen`
+never read Sofa's settings.
+
+Sofa Launcher is the source of truth for the backgrounds. Nod.ie keeps the id list in one
+place, `SOFA_BACKGROUNDS` in `lib/sofa-appearance.js`; the CSS in `sofa-backdrops.css` is
+ported from Sofa's `src/renderer/src/app.css` and the six pictures in `assets/backgrounds/`
+are copied from Sofa's `src/renderer/src/assets/backgrounds/`. When Sofa adds, removes or
+restyles a background, update all three; `tests/unit/sofa-appearance.test.js` fails if the
+list, CSS rules and pictures disagree.
+
+The desktop has small Full screen / Restore and Minimize to system tray controls centred on the upper-right arc of the avatar boundary. The fullscreen camera preview remains clipped and positioned inside its own control. Full screen presents the enlarged avatar with a dark background and bottom controls; in compact mode, Escape restores the previous compact position and size. Hiding does not end the conversation. Tray click or the existing show shortcut reopens it.
 
 Directly address Nodie's name for voice controls: natural variants of fullscreen, restore, hide/minimize, show/open, speaker mute/unmute and microphone stop are supported. Overheard keywords, quoted commands, hypothetical discussion and negated window commands do not activate them. This is a bounded intention parser, not unrestricted voice automation. Stop talking means persistent speaker mute, as requested; it does not stop microphone capture. A hidden app can hear an addressed open request while the microphone remains enabled. Once listening is stopped, use the tray or hotkey to enable it again. No secondary always-listening wake-word microphone is opened.
 
 Known people are resolved from names and nicknames in the microphone transcript using a bounded private index. Phonetic variants and ambiguous first names are candidates requiring clarification or spelling; they are never automatically saved or merged. Only matched person facts are supplied to the conversation, without embedding vectors. Cold lookups wait up to 1.5 seconds on the response path and complete privately under a serialized MCP transport.
 
-Directly addressed local controls confirm through the resulting window or mute state. Their model reply is suppressed because the model has not received the local action result. Outside TV mode, Escape is registered while the fullscreen window is visible and released when hidden or restored. In TV mode, Escape is ignored.
+Directly addressed local controls confirm through the resulting window or mute state. Their model reply is suppressed because the model has not received the local action result. In compact mode, Escape is registered while the fullscreen window is visible and focused, and released when hidden, unfocused or restored. With `--fullscreen`, Escape is swallowed; with `--tv`, it is passed to the page.
 
 The event journal defaults to 30-day retention. Settings provides refresh, retention selection and clear; fullscreen Debug toggles a separate in-memory stream. Backend deployment requires `NODIE_EVENTS_DIR=$HOME/.config/nodie/events` as a read-only mount for dated recall.
 

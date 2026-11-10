@@ -244,6 +244,20 @@ function start() {
         win.webContents.on('context-menu', () => menu.popup());
         return menu;
     }
+    // --tv only: paint Sofa Launcher's chosen background and accent (read-only; Sofa owns the file).
+    let sofaAppearance = { theme: null, background: null }, sofaWatcher;
+    function followSofaAppearance() {
+        const sofa = require('./lib/sofa-appearance');
+        const send = () => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('sofa-appearance', sofaAppearance); };
+        mainWindow.webContents.on('did-finish-load', send);
+        sofaWatcher = sofa.watchSofaAppearance(sofa.sofaConfigPath(), next => {
+            sofaAppearance = next;
+            logger.write('info', 'desktop.sofa-appearance', { status: next.background ?? 'none', stage: next.theme ?? 'none' });
+            console.info(`Sofa appearance: background ${next.background ?? 'none'}, theme ${next.theme ?? 'none'}`);
+            send();
+        });
+        app.on('before-quit', () => sofaWatcher?.close());
+    }
     app.whenReady().then(() => {
         if (process.argv.includes('--keep-awake')) keepAwake();
         session.defaultSession.setPermissionRequestHandler((contents, permission, callback, details) => {
@@ -251,6 +265,7 @@ function start() {
         });
         session.defaultSession.setPermissionCheckHandler((contents, permission, _origin, details) => contents === mainWindow?.webContents && permission === 'media' && contents.getURL() === pathToFileURL(path.join(__dirname, 'index.html')).href);
         const menu = createMainWindow();
+        if (launchMode === 'tv') followSofaAppearance();
         const trayIcon = path.join(__dirname, 'assets/icons/tray.png');
         if (fs.existsSync(trayIcon)) { tray = new Tray(trayIcon); tray.setToolTip('Nod.ie'); tray.setContextMenu(menu); tray.on('click', () => mainWindow.show()); }
         shortcuts();

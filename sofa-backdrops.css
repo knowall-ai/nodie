@@ -1,0 +1,76 @@
+/*
+ * Sofa Launcher backdrops for --tv mode. Sofa Launcher is the source of truth: these rules are
+ * ported from sofa-launcher/src/renderer/src/app.css (":root[data-background=…] body") and the
+ * pictures in assets/backgrounds/ are copied from sofa-launcher/src/renderer/src/assets/backgrounds/.
+ * The id list lives in lib/sofa-appearance.js (SOFA_BACKGROUNDS); keep the three in step.
+ *
+ * The main process sets data-sofa-background / data-sofa-theme on <html> only in --tv mode, and
+ * body.tv-fullscreen is set only while that TV window is actually full screen. Without them
+ * (floating avatar, standalone --fullscreen, Sofa's screen-in-screen corner, or no Sofa config),
+ * Nod.ie keeps its own look from renderer.css.
+ */
+:root {
+    /* Sofa's default theme is KnowAll; the glow backgrounds use the accent. */
+    --sofa-accent: #9dff0a;
+    --sofa-accent-strong: #80db08;
+    --sofa-accent-glow: rgba(157, 255, 10, 0.55);
+}
+:root[data-sofa-theme="nodie"] {
+    --sofa-accent: #f7931a;
+    --sofa-accent-strong: #ff8c00;
+    --sofa-accent-glow: rgba(247, 147, 26, 0.8);
+}
+
+:root[data-sofa-background="midnight"] body.tv-fullscreen {
+    background: radial-gradient(120% 90% at 20% 0%, #1b2333 0%, #0b0d12 55%, #07080b 100%);
+}
+:root[data-sofa-background="corner-glow"] body.tv-fullscreen {
+    background:
+        radial-gradient(70% 60% at 0% 0%, color-mix(in srgb, var(--sofa-accent) 14%, transparent) 0%, transparent 70%),
+        radial-gradient(60% 50% at 100% 100%, color-mix(in srgb, var(--sofa-accent) 8%, transparent) 0%, transparent 70%),
+        #07080b;
+}
+:root[data-sofa-background="horizon-glow"] body.tv-fullscreen {
+    background:
+        radial-gradient(120% 40% at 50% 108%, color-mix(in srgb, var(--sofa-accent) 22%, transparent) 0%, transparent 60%),
+        linear-gradient(#090b10, #050608);
+}
+:root[data-sofa-background="brand-wash"] body.tv-fullscreen {
+    background:
+        radial-gradient(50% 45% at 15% 10%, rgba(157, 255, 10, 0.1), transparent 70%),
+        radial-gradient(45% 40% at 90% 20%, rgba(247, 147, 26, 0.09), transparent 70%),
+        radial-gradient(60% 50% at 60% 110%, rgba(157, 255, 10, 0.07), transparent 70%),
+        #07080b;
+}
+:root[data-sofa-background="dot-grid"] body.tv-fullscreen {
+    background:
+        radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.05) 1px, transparent 1.5px) 0 0 / 2.2vw 2.2vw,
+        radial-gradient(120% 90% at 50% 0%, #161b26 0%, #07080b 70%);
+}
+:root[data-sofa-background="near-black"] body.tv-fullscreen { background: radial-gradient(100% 80% at 50% 40%, #0d1016 0%, #030405 100%); }
+/* Pictures are darkened towards the top, as in Sofa. */
+:root[data-sofa-background="horizon"] body.tv-fullscreen {
+    background: linear-gradient(rgba(7, 8, 11, 0.45), rgba(7, 8, 11, 0.05)), url('assets/backgrounds/horizon.jpg') center bottom / cover no-repeat #07080b;
+}
+:root[data-sofa-background="ribbons"] body.tv-fullscreen {
+    background: linear-gradient(rgba(7, 8, 11, 0.72), rgba(7, 8, 11, 0.85)), url('assets/backgrounds/ribbons.jpg') center / cover no-repeat #07080b;
+}
+:root[data-sofa-background="smoke-left"] body.tv-fullscreen {
+    background: linear-gradient(rgba(7, 8, 11, 0.35), rgba(7, 8, 11, 0.2)), url('assets/backgrounds/smoke-left.jpg') center bottom / cover no-repeat #07080b;
+}
+:root[data-sofa-background="smoke-right"] body.tv-fullscreen {
+    background: linear-gradient(rgba(7, 8, 11, 0.35), rgba(7, 8, 11, 0.2)), url('assets/backgrounds/smoke-right.jpg') center bottom / cover no-repeat #07080b;
+}
+:root[data-sofa-background="nebula"] body.tv-fullscreen {
+    background: linear-gradient(rgba(7, 8, 11, 0.3), rgba(7, 8, 11, 0.15)), url('assets/backgrounds/nebula.jpg') center bottom / cover no-repeat #07080b;
+}
+:root[data-sofa-background="planet"] body.tv-fullscreen {
+    background: linear-gradient(rgba(7, 8, 11, 0.3), rgba(7, 8, 11, 0.1)), url('assets/backgrounds/planet.jpg') center bottom / cover no-repeat #07080b;
+}
+
+/* Remote focus ring and glow follow Sofa's theme accent; the buttons stay Nod.ie orange. */
+:root[data-sofa-theme] body.fullscreen .orbit-control:focus,
+:root[data-sofa-theme] body.fullscreen #control-camera:focus {
+    box-shadow: 0 0 0 11px color-mix(in srgb, var(--sofa-accent-strong) 70%, #000), 0 0 32px 12px var(--sofa-accent-glow);
+}
+:root[data-sofa-theme] body.fullscreen .orbit-control:focus::after { border-color: var(--sofa-accent); }

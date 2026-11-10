@@ -9,9 +9,11 @@
 |Microphone unavailable |Grant browser permission and select a working input device. Local mode releases it after each recording.
 |Lip sync unavailable |Check `LOCAL_LIP_SYNC_URL` and the neural service `/health` endpoint. Run the model setup script with `--verify`. Check GPU headroom and container health. Speech remains available if rendering fails.
 |Avatar stops near the bottom edge |The whole transparent window stays inside the usable desktop area, including the panel boundary. At 300% scaling, a 300-DIP window occupies 900 physical pixels. Movement stops at that boundary.
-|TV mode will not leave fullscreen |Expected when started with `--fullscreen`: Escape and Restore are ignored, and window-manager fullscreen exits are reversed. Quit and restart without the flag for compact mode. No window or renderer is replaced.
-|Second launch with `--fullscreen` stays compact |TV mode is selected only at startup. Quit the running instance and start `npm start -- --fullscreen --keep-awake`. The second launch shows and focuses the existing window, logs a restart message and displays it if desktop notifications are supported. `--keep-awake` still applies once and stops on quit; an existing TV instance simply receives focus.
-|Linux fullscreen dock is restored by KWin |For a TV PC, start Nod.ie with `--fullscreen` to use a normal window that remains fullscreen. Starting without the flag retains the existing compact dock behaviour.
+|Nod.ie will not leave fullscreen |Expected when started with `--fullscreen`: Escape and Restore are ignored, and window-manager fullscreen exits are reversed. Quit and restart without the flag for compact mode. No window or renderer is replaced.
+|Second launch with `--fullscreen` or `--tv` keeps the old mode |The mode is selected only at startup. Quit the running instance and start it with the flag. The second launch shows and focuses the existing window, logs a restart message and displays it if desktop notifications are supported. `--keep-awake` still applies once and stops on quit; an instance already in that mode simply receives focus.
+|Linux fullscreen dock is restored by KWin |For a TV PC, start Nod.ie with `--fullscreen` (standalone) or `--tv` (from a TV launcher) to use a normal window. Starting without a flag retains the existing compact dock behaviour.
+|Sofa screen-in-screen snaps back to full screen |Launch Nod.ie with `--tv`, not `--fullscreen`. `--fullscreen` deliberately re-enters full screen, which ends Sofa's screen-in-screen.
+|TV backdrop does not match Sofa |Only `--tv` follows Sofa, and only while full screen. Check `[ui] background` and `theme` in `$XDG_CONFIG_HOME/sofa-launcher/config.toml`; unknown ids fall back to Nod.ie's look. A background added to Sofa after this release needs the id, CSS and picture ported (see Installation).
 |Controls missing |Reload the browser or restart the desktop after updating. Microphone and speaker are functional; the camera button stays off until vision is connected.
 |Dragging starts a conversation |Reload the desktop after updating. A movement of at least five desktop-independent pixels is treated as a drag; a short click remains a voice control.
 |No sound |Check the browser audio permission, selected output device and system volume.
@@ -23,9 +25,10 @@
 
 === Settings changes and silent recordings
 
-For Sofa/TV launches use `--tv`. Nodie then keeps a full-window layout when
-Sofa resizes it for screen-in-screen, hides its floating/tray mode controls and
-does not restore the old compact geometry on an external fullscreen exit.
+For Sofa/TV launches use `--tv` (see the window modes in Installation). Nodie then
+keeps a full-window layout when Sofa resizes it for screen-in-screen, hides its
+floating/tray mode controls and does not restore the old compact geometry on an
+external fullscreen exit.
 Settings uses a fullscreen window with directional form navigation; Back closes
 Settings without saving. Device captions show the microphone and voice-mute
 actions. The camera-on icon is included locally, avoiding a broken image when
